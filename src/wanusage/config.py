@@ -27,6 +27,7 @@ class EmailConfig:
     username: str
     password: str
     from_address: str
+    use_tls: bool
 
 
 @dataclass(frozen=True)
@@ -68,6 +69,7 @@ def load_config(config_path: Path) -> AppConfig:
             username=_optional_str(email_section, "username"),
             password=_optional_str(email_section, "password"),
             from_address=_optional_str(email_section, "from_address"),
+            use_tls=_optional_bool(email_section, "use_tls", default=True),
         ),
     )
 
@@ -111,4 +113,11 @@ def _optional_int(section: dict[str, Any], key: str, *, default: int) -> int:
     value: Any = section.get(key, default)
     if not isinstance(value, int):
         raise ConfigError(f"Config value must be an integer: {key}")
+    return value
+
+
+def _optional_bool(section: dict[str, Any], key: str, *, default: bool) -> bool:
+    value: Any = section.get(key, default)
+    if not isinstance(value, bool):
+        raise ConfigError(f"Config value must be a boolean: {key}")
     return value

@@ -40,6 +40,7 @@ from_address = "wan@example.com"
     assert config.vnstat.database_path == "/var/lib/vnstat/vnstat.db"
     assert config.vnstat.interface_id == 1
     assert config.email.smtp_host == "smtp.example.com"
+    assert config.email.use_tls is True
 
 
 def test_load_config_rejects_missing_required_section(tmp_path: Path) -> None:

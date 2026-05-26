@@ -27,6 +27,7 @@ file; the app rejects unknown host keys.
 
 ```bash
 wanusage report --config wanusage.toml
+wanusage report --config wanusage.toml --email you@example.com
 ```
 
 For local development without installing the console script globally:
@@ -47,5 +48,5 @@ pytest
 ## Current Status
 
 The app can now load local TOML config, connect over SSH, query vnStat with the
-remote `sqlite3` command, and print a terminal report. Email delivery is still a
-planned follow-up.
+remote `sqlite3` command, print a terminal report, and optionally send the same
+report body by SMTP.
