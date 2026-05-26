@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from datetime import date
+from pathlib import Path
 
-from wanusage.billing import (
-    calculate_current_billing_window,
-    calculate_last_7_completed_days,
-    calculate_previous_billing_window,
-)
+from wanusage.config import ConfigError, load_config
+from wanusage.reporting import format_report
+from wanusage.ssh import ParamikoCommandRunner, RemoteCommandError
+from wanusage.vnstat import VnstatClient
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -39,28 +40,26 @@ def main() -> None:
     args: argparse.Namespace = parser.parse_args()
 
     if args.command == "report":
-        _handle_report()
+        _handle_report(args)
 
 
-def _handle_report() -> None:
-    today: date = date.today()
-    last_7_days = calculate_last_7_completed_days(today)
-    current_period = calculate_current_billing_window(today)
-    previous_period = calculate_previous_billing_window(today)
+def _handle_report(args: argparse.Namespace) -> None:
+    config_path = Path(args.config).expanduser()
 
-    print("WANUsage project scaffold is ready.")
-    print(
-        "Last 7 completed days: "
-        f"{last_7_days.start_date.isoformat()} <= date < {last_7_days.end_date.isoformat()}"
-    )
-    print(
-        "Current billing period: "
-        f"{current_period.start_date.isoformat()} <= date < {current_period.end_date.isoformat()}"
-    )
-    print(
-        "Previous billing period: "
-        f"{previous_period.start_date.isoformat()} <= date < {previous_period.end_date.isoformat()}"
-    )
+    try:
+        app_config = load_config(config_path)
+        command_runner = ParamikoCommandRunner(app_config.router)
+        vnstat_client = VnstatClient(command_runner=command_runner, config=app_config.vnstat)
+        report = vnstat_client.build_usage_report(date.today())
+    except (ConfigError, RemoteCommandError, OSError, ValueError) as error:
+        print(f"wanusage: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
+
+    if args.email:
+        print("wanusage: email delivery is not implemented yet", file=sys.stderr)
+        raise SystemExit(1)
+
+    print(format_report(report))
 
 
 if __name__ == "__main__":
