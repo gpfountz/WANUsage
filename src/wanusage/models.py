@@ -1,0 +1,26 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date
+
+
+@dataclass(frozen=True)
+class DailyUsage:
+    usage_date: date
+    total_bytes: int
+
+
+@dataclass(frozen=True)
+class UsagePeriod:
+    name: str
+    start_date: date
+    end_date: date
+    total_bytes: int
+
+
+@dataclass(frozen=True)
+class UsageReport:
+    generated_for: date
+    last_7_days: tuple[DailyUsage, ...]
+    current_period: UsagePeriod
+    previous_period: UsagePeriod

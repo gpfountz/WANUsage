@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+from wanusage.models import DailyUsage, UsagePeriod, UsageReport
+
+
+def format_report(report: UsageReport) -> str:
+    lines: list[str] = [
+        f"WAN usage report for {report.generated_for.isoformat()}",
+        "",
+        "Last 7 completed days:",
+    ]
+
+    if report.last_7_days:
+        for daily_usage in report.last_7_days:
+            lines.append(
+                f"  {daily_usage.usage_date.isoformat()}: "
+                f"{format_bytes(daily_usage.total_bytes)}"
+            )
+    else:
+        lines.append("  No daily usage records found.")
+
+    lines.extend(
+        [
+            "",
+            _format_period(report.current_period),
+            _format_period(report.previous_period),
+        ]
+    )
+
+    return "\n".join(lines)
+
+
+def format_bytes(byte_count: int) -> str:
+    if byte_count < 0:
+        raise ValueError("byte_count cannot be negative")
+
+    units: tuple[str, ...] = ("B", "KiB", "MiB", "GiB", "TiB", "PiB")
+    value: float = float(byte_count)
+
+    for unit in units:
+        if value < 1024 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(value)} {unit}"
+            return f"{value:.2f} {unit}"
+        value /= 1024
+
+    raise RuntimeError("unreachable byte formatting state")
+
+
+def _format_period(period: UsagePeriod) -> str:
+    return (
+        f"{period.name} ({period.start_date.isoformat()} <= date < "
+        f"{period.end_date.isoformat()}): {format_bytes(period.total_bytes)}"
+    )
+
+
+def sort_daily_usage(values: list[DailyUsage]) -> tuple[DailyUsage, ...]:
+    return tuple(sorted(values, key=lambda value: value.usage_date))
