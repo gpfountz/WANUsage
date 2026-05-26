@@ -6,6 +6,7 @@ from datetime import date
 from pathlib import Path
 
 from wanusage.config import ConfigError, load_config
+from wanusage.emailer import EmailError, EmailSender
 from wanusage.reporting import format_report
 from wanusage.ssh import ParamikoCommandRunner, RemoteCommandError
 from wanusage.vnstat import VnstatClient
@@ -29,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     report_parser.add_argument(
         "--email",
-        help="Optional recipient email address. Email delivery will be added later.",
+        help="Optional recipient email address.",
     )
 
     return parser
@@ -55,11 +56,20 @@ def _handle_report(args: argparse.Namespace) -> None:
         print(f"wanusage: {error}", file=sys.stderr)
         raise SystemExit(1) from error
 
-    if args.email:
-        print("wanusage: email delivery is not implemented yet", file=sys.stderr)
-        raise SystemExit(1)
+    formatted_report: str = format_report(report)
 
-    print(format_report(report))
+    if args.email:
+        try:
+            EmailSender(app_config.email).send_report(
+                recipient=args.email,
+                subject=f"WAN usage report for {report.generated_for.isoformat()}",
+                body=formatted_report,
+            )
+        except EmailError as error:
+            print(f"wanusage: {error}", file=sys.stderr)
+            raise SystemExit(1) from error
+
+    print(formatted_report)
 
 
 if __name__ == "__main__":
