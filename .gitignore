@@ -13,3 +13,4 @@ src/.DS_Store
 wanusage.toml
 *.local.toml
 .env
+.DS_Store
