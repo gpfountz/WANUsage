@@ -25,23 +25,19 @@ def build_parser() -> argparse.ArgumentParser:
         version=f"%(prog)s {__version__}",
         help="Show the installed wanusage version and exit.",
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    report_parser: argparse.ArgumentParser = subparsers.add_parser(
-        "report",
-        help="Generate a WAN usage report.",
-        description="Generate a WAN usage report from the configured OPNsense router.",
-    )
-    report_parser.add_argument(
+    parser.add_argument(
         "--config",
         default="wanusage.toml",
-        help="Path to local TOML config containing router and credential settings.",
+        help=(
+            "Optional path to local TOML config containing router and credential settings. "
+            "Defaults to wanusage.toml in the current directory."
+        ),
     )
-    report_parser.add_argument(
+    parser.add_argument(
         "--email",
         help="Optional recipient email address.",
     )
-    report_parser.add_argument(
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Print full exception tracebacks when a command fails.",
@@ -53,9 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser: argparse.ArgumentParser = build_parser()
     args: argparse.Namespace = parser.parse_args()
-
-    if args.command == "report":
-        _handle_report(args)
+    _handle_report(args)
 
 
 def _handle_report(args: argparse.Namespace) -> None:
