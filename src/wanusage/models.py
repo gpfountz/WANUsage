@@ -21,6 +21,6 @@ class UsagePeriod:
 @dataclass(frozen=True)
 class UsageReport:
     generated_for: date
-    last_7_days: tuple[DailyUsage, ...]
-    current_period: UsagePeriod
-    previous_period: UsagePeriod
+    day_count: int
+    daily_usage: tuple[DailyUsage, ...]
+    billing_periods: tuple[UsagePeriod, ...]

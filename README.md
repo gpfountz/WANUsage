@@ -28,11 +28,15 @@ file; the app rejects unknown host keys.
 ```bash
 wanusage
 wanusage --config wanusage.toml
+wanusage --days 14 --months 3
 wanusage --config wanusage.toml --email you@example.com
 wanusage --config wanusage.toml --debug
 wanusage --version
 wanusage --help
 ```
+
+`--days` and `--months` accept values from 1 to 99. By default, the report shows
+7 completed days and 2 billing months.
 
 For local development without installing the console script globally:
 

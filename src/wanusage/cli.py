@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 import traceback
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 
@@ -42,6 +43,18 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print full exception tracebacks when a command fails.",
     )
+    parser.add_argument(
+        "--days",
+        type=_bounded_int("days", minimum=1, maximum=99),
+        default=7,
+        help="Number of completed days to show in the report, from 1 to 99. Defaults to 7.",
+    )
+    parser.add_argument(
+        "--months",
+        type=_bounded_int("months", minimum=1, maximum=99),
+        default=2,
+        help="Number of billing months to show in the report, from 1 to 99. Defaults to 2.",
+    )
 
     return parser
 
@@ -59,7 +72,11 @@ def _handle_report(args: argparse.Namespace) -> None:
         app_config = load_config(config_path)
         command_runner = ParamikoCommandRunner(app_config.router)
         vnstat_client = VnstatClient(command_runner=command_runner, config=app_config.vnstat)
-        report = vnstat_client.build_usage_report(date.today())
+        report = vnstat_client.build_usage_report(
+            date.today(),
+            day_count=args.days,
+            month_count=args.months,
+        )
     except (ConfigError, RemoteCommandError, OSError, ValueError) as error:
         _handle_error(error, debug=args.debug)
 
@@ -84,6 +101,21 @@ def _handle_error(error: Exception, *, debug: bool) -> None:
     else:
         print(f"wanusage: {error}", file=sys.stderr)
     raise SystemExit(1) from error
+
+
+def _bounded_int(name: str, *, minimum: int, maximum: int) -> Callable[[str], int]:
+    def parse(value: str) -> int:
+        try:
+            parsed_value: int = int(value)
+        except ValueError as error:
+            raise argparse.ArgumentTypeError(f"{name} must be an integer") from error
+
+        if parsed_value < minimum or parsed_value > maximum:
+            raise argparse.ArgumentTypeError(f"{name} must be between {minimum} and {maximum}")
+
+        return parsed_value
+
+    return parse
 
 
 if __name__ == "__main__":

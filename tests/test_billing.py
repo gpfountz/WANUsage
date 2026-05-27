@@ -4,6 +4,8 @@ from datetime import date
 
 from wanusage.billing import (
     DateWindow,
+    calculate_billing_windows,
+    calculate_completed_days,
     calculate_current_billing_window,
     calculate_last_7_completed_days,
     calculate_previous_billing_window,
@@ -13,6 +15,13 @@ from wanusage.billing import (
 def test_last_7_completed_days_excludes_today() -> None:
     assert calculate_last_7_completed_days(date(2026, 5, 26)) == DateWindow(
         start_date=date(2026, 5, 19),
+        end_date=date(2026, 5, 26),
+    )
+
+
+def test_completed_days_uses_requested_day_count() -> None:
+    assert calculate_completed_days(date(2026, 5, 26), 14) == DateWindow(
+        start_date=date(2026, 5, 12),
         end_date=date(2026, 5, 26),
     )
 
@@ -49,4 +58,12 @@ def test_billing_window_handles_year_boundary() -> None:
     assert calculate_current_billing_window(date(2026, 1, 2)) == DateWindow(
         start_date=date(2025, 12, 14),
         end_date=date(2026, 1, 14),
+    )
+
+
+def test_billing_windows_returns_requested_months_oldest_first() -> None:
+    assert calculate_billing_windows(date(2026, 5, 26), 3) == (
+        DateWindow(start_date=date(2026, 3, 14), end_date=date(2026, 4, 14)),
+        DateWindow(start_date=date(2026, 4, 14), end_date=date(2026, 5, 14)),
+        DateWindow(start_date=date(2026, 5, 14), end_date=date(2026, 6, 14)),
     )

@@ -6,9 +6,8 @@ from datetime import date
 
 from wanusage.billing import (
     DateWindow,
-    calculate_current_billing_window,
-    calculate_last_7_completed_days,
-    calculate_previous_billing_window,
+    calculate_billing_windows,
+    calculate_completed_days,
 )
 from wanusage.config import VnstatConfig
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
@@ -21,26 +20,32 @@ class VnstatClient:
     command_runner: RemoteCommandRunner
     config: VnstatConfig
 
-    def build_usage_report(self, today: date) -> UsageReport:
-        last_7_days_window: DateWindow = calculate_last_7_completed_days(today)
-        current_window: DateWindow = calculate_current_billing_window(today)
-        previous_window: DateWindow = calculate_previous_billing_window(today)
+    def build_usage_report(
+        self,
+        today: date,
+        *,
+        day_count: int = 7,
+        month_count: int = 2,
+    ) -> UsageReport:
+        completed_days_window: DateWindow = calculate_completed_days(today, day_count)
+        billing_windows: tuple[DateWindow, ...] = calculate_billing_windows(today, month_count)
 
         return UsageReport(
             generated_for=today,
-            last_7_days=self.fetch_daily_usage(last_7_days_window),
-            current_period=UsagePeriod(
-                name="Current billing period",
-                start_date=current_window.start_date,
-                end_date=current_window.end_date,
-                total_bytes=self.fetch_total_usage(current_window),
+            day_count=day_count,
+            daily_usage=self.fetch_daily_usage(completed_days_window),
+            billing_periods=tuple(
+                self._build_usage_period(window, index, len(billing_windows))
+                for index, window in enumerate(billing_windows)
             ),
-            previous_period=UsagePeriod(
-                name="Previous billing period",
-                start_date=previous_window.start_date,
-                end_date=previous_window.end_date,
-                total_bytes=self.fetch_total_usage(previous_window),
-            ),
+        )
+
+    def _build_usage_period(self, window: DateWindow, index: int, period_count: int) -> UsagePeriod:
+        return UsagePeriod(
+            name=_billing_period_name(index, period_count),
+            start_date=window.start_date,
+            end_date=window.end_date,
+            total_bytes=self.fetch_total_usage(window),
         )
 
     def fetch_daily_usage(self, window: DateWindow) -> tuple[DailyUsage, ...]:
@@ -102,3 +107,11 @@ def _parse_total_usage(output: str) -> int:
 
     first_line: str = stripped_output.splitlines()[0].strip()
     return int(first_line)
+
+
+def _billing_period_name(index: int, period_count: int) -> str:
+    if index == period_count - 1:
+        return "Current billing period"
+    if index == period_count - 2:
+        return "Previous billing period"
+    return "Billing period"
