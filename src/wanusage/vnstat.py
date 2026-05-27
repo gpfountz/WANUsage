@@ -25,10 +25,9 @@ class VnstatClient:
         today: date,
         *,
         day_count: int = 7,
-        month_count: int = 2,
     ) -> UsageReport:
         completed_days_window: DateWindow = calculate_completed_days(today, day_count)
-        billing_windows: tuple[DateWindow, ...] = calculate_billing_windows(today, month_count)
+        billing_windows: tuple[DateWindow, ...] = calculate_billing_windows(today, 2)
 
         return UsageReport(
             generated_for=today,
