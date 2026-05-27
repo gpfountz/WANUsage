@@ -45,10 +45,10 @@ def test_format_report_includes_daily_and_period_totals() -> None:
 
     assert "WAN usage report for 2026-05-26" in formatted_report
     assert "2026-05-24: 1.00 KiB" in formatted_report
-    assert "Current billing period (2026-05-14 <= date < 2026-06-14): 1.00 GiB" in (
+    assert "Current billing period (2026-05-14 - 2026-06-14): 1.00 GiB" in (
         formatted_report
     )
-    assert "Previous billing period (2026-04-14 <= date < 2026-05-14): 1.00 TiB" in (
+    assert "Previous billing period (2026-04-14 - 2026-05-14): 1.00 TiB" in (
         formatted_report
     )
     assert formatted_report.index("Previous billing period") < formatted_report.index(
