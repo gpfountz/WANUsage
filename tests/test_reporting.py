@@ -23,21 +23,24 @@ def test_format_bytes_rejects_negative_values() -> None:
 def test_format_report_includes_daily_and_period_totals() -> None:
     report = UsageReport(
         generated_for=date(2026, 5, 26),
-        last_7_days=(
+        day_count=7,
+        daily_usage=(
             DailyUsage(usage_date=date(2026, 5, 24), total_bytes=1024),
             DailyUsage(usage_date=date(2026, 5, 25), total_bytes=2048),
         ),
-        current_period=UsagePeriod(
-            name="Current billing period",
-            start_date=date(2026, 5, 14),
-            end_date=date(2026, 6, 14),
-            total_bytes=1024**3,
-        ),
-        previous_period=UsagePeriod(
-            name="Previous billing period",
-            start_date=date(2026, 4, 14),
-            end_date=date(2026, 5, 14),
-            total_bytes=1024**4,
+        billing_periods=(
+            UsagePeriod(
+                name="Previous billing period",
+                start_date=date(2026, 4, 14),
+                end_date=date(2026, 5, 14),
+                total_bytes=1024**4,
+            ),
+            UsagePeriod(
+                name="Current billing period",
+                start_date=date(2026, 5, 14),
+                end_date=date(2026, 6, 14),
+                total_bytes=1024**3,
+            ),
         ),
     )
 
@@ -54,6 +57,17 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     assert formatted_report.index("Previous billing period") < formatted_report.index(
         "Current billing period"
     )
+
+
+def test_format_report_uses_requested_day_count_in_heading() -> None:
+    report = UsageReport(
+        generated_for=date(2026, 5, 26),
+        day_count=1,
+        daily_usage=(),
+        billing_periods=(),
+    )
+
+    assert "Last 1 completed day:" in format_report(report)
 
 
 def test_sort_daily_usage_orders_by_date() -> None:

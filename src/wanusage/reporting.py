@@ -7,11 +7,11 @@ def format_report(report: UsageReport) -> str:
     lines: list[str] = [
         f"WAN usage report for {report.generated_for.isoformat()}",
         "",
-        "Last 7 completed days:",
+        f"Last {report.day_count} completed day{'s' if report.day_count != 1 else ''}:",
     ]
 
-    if report.last_7_days:
-        for daily_usage in report.last_7_days:
+    if report.daily_usage:
+        for daily_usage in report.daily_usage:
             lines.append(
                 f"  {daily_usage.usage_date.isoformat()}: "
                 f"{format_bytes(daily_usage.total_bytes)}"
@@ -19,13 +19,8 @@ def format_report(report: UsageReport) -> str:
     else:
         lines.append("  No daily usage records found.")
 
-    lines.extend(
-        [
-            "",
-            _format_period(report.previous_period),
-            _format_period(report.current_period),
-        ]
-    )
+    lines.append("")
+    lines.extend(_format_period(period) for period in report.billing_periods)
 
     return "\n".join(lines)
 
