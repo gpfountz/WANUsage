@@ -45,15 +45,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--days",
-        type=_bounded_int("days", minimum=1, maximum=99),
+        type=_bounded_int("days", minimum=1, maximum=60),
         default=7,
-        help="Number of completed days to show in the report, from 1 to 99. Defaults to 7.",
-    )
-    parser.add_argument(
-        "--months",
-        type=_bounded_int("months", minimum=1, maximum=99),
-        default=2,
-        help="Number of billing months to show in the report, from 1 to 99. Defaults to 2.",
+        help="Number of completed days to show in the report, from 1 to 60. Defaults to 7.",
     )
 
     return parser
@@ -75,7 +69,6 @@ def _handle_report(args: argparse.Namespace) -> None:
         report = vnstat_client.build_usage_report(
             date.today(),
             day_count=args.days,
-            month_count=args.months,
         )
     except (ConfigError, RemoteCommandError, OSError, ValueError) as error:
         _handle_error(error, debug=args.debug)

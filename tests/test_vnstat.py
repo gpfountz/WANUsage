@@ -59,7 +59,7 @@ def test_build_usage_report_fetches_all_periods() -> None:
         config=VnstatConfig(database_path="/var/lib/vnstat/vnstat.db", interface_id=1),
     )
 
-    report = client.build_usage_report(date(2026, 5, 26), day_count=7, month_count=2)
+    report = client.build_usage_report(date(2026, 5, 26), day_count=7)
 
     assert report.daily_usage[0].total_bytes == 1024
     assert report.billing_periods[0].total_bytes == 8192
@@ -69,11 +69,10 @@ def test_build_usage_report_fetches_all_periods() -> None:
     assert len(command_runner.commands) == 3
 
 
-def test_build_usage_report_supports_custom_day_and_month_counts() -> None:
+def test_build_usage_report_supports_custom_day_count() -> None:
     command_runner = FakeCommandRunner(
         outputs=[
             "2026-05-25|1024\n",
-            "1\n",
             "2\n",
             "3\n",
         ]
@@ -83,10 +82,9 @@ def test_build_usage_report_supports_custom_day_and_month_counts() -> None:
         config=VnstatConfig(database_path="/var/lib/vnstat/vnstat.db", interface_id=1),
     )
 
-    report = client.build_usage_report(date(2026, 5, 26), day_count=1, month_count=3)
+    report = client.build_usage_report(date(2026, 5, 26), day_count=1)
 
     assert report.day_count == 1
-    assert report.billing_periods[0].name == "Billing period"
-    assert report.billing_periods[1].name == "Previous billing period"
-    assert report.billing_periods[2].name == "Current billing period"
-    assert len(command_runner.commands) == 4
+    assert report.billing_periods[0].name == "Previous billing period"
+    assert report.billing_periods[1].name == "Current billing period"
+    assert len(command_runner.commands) == 3
