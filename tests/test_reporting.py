@@ -51,6 +51,9 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     assert "Previous billing period (2026-04-14 <= date < 2026-05-14): 1.00 TiB" in (
         formatted_report
     )
+    assert formatted_report.index("Previous billing period") < formatted_report.index(
+        "Current billing period"
+    )
 
 
 def test_sort_daily_usage_orders_by_date() -> None:

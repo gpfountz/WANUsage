@@ -22,8 +22,8 @@ def format_report(report: UsageReport) -> str:
     lines.extend(
         [
             "",
-            _format_period(report.current_period),
             _format_period(report.previous_period),
+            _format_period(report.current_period),
         ]
     )
 
