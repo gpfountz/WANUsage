@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from email.message import EmailMessage
 
-import pytest
+import pytest # type: ignore
 
 from wanusage.config import EmailConfig
 from wanusage.emailer import EmailError, EmailSender

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-import paramiko
+import paramiko # type: ignore
 
 from wanusage.config import RouterConfig
 
@@ -14,7 +14,7 @@ class RemoteCommandError(RuntimeError):
 
 class RemoteCommandRunner(Protocol):
     def run(self, command: str) -> str:
-        pass
+        ...
 
 
 @dataclass(frozen=True)

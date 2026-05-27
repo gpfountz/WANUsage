@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
+import pytest # type: ignore
 
 from wanusage.config import AppConfig, ConfigError, load_config
 

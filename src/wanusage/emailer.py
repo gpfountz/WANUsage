@@ -36,9 +36,9 @@ class EmailSender:
                 if self.config.username:
                     smtp.login(self.config.username, self.config.password)
                 smtp.send_message(message)
-        except OSError as error:
-            raise EmailError(f"Could not send email: {error}") from error
         except smtplib.SMTPException as error:
+            raise EmailError(f"Could not send email: {error}") from error
+        except OSError as error:
             raise EmailError(f"Could not send email: {error}") from error
 
     def _validate_config(self) -> None:

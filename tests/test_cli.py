@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-import pytest
+import pytest # type: ignore
 
 from wanusage import __version__
 from wanusage.cli import build_parser

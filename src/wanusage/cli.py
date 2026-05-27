@@ -70,22 +70,21 @@ def _handle_report(args: argparse.Namespace) -> None:
             date.today(),
             day_count=args.days,
         )
+        formatted_report: str = format_report(report)
+
+        if args.email:
+            try:
+                EmailSender(app_config.email).send_report(
+                    recipient=args.email,
+                    subject=f"WAN usage report for {report.generated_for.isoformat()}",
+                    body=formatted_report,
+                )
+            except EmailError as error:
+                _handle_error(error, debug=args.debug)
+
+        print(formatted_report)
     except (ConfigError, RemoteCommandError, OSError, ValueError) as error:
         _handle_error(error, debug=args.debug)
-
-    formatted_report: str = format_report(report)
-
-    if args.email:
-        try:
-            EmailSender(app_config.email).send_report(
-                recipient=args.email,
-                subject=f"WAN usage report for {report.generated_for.isoformat()}",
-                body=formatted_report,
-            )
-        except EmailError as error:
-            _handle_error(error, debug=args.debug)
-
-    print(formatted_report)
 
 
 def _handle_error(error: Exception, *, debug: bool) -> None:
