@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import sys
+import traceback
 from datetime import date
 from pathlib import Path
 
+from wanusage import __version__
 from wanusage.config import ConfigError, load_config
 from wanusage.emailer import EmailError, EmailSender
 from wanusage.reporting import format_report
@@ -17,11 +19,18 @@ def build_parser() -> argparse.ArgumentParser:
         prog="wanusage",
         description="Report WAN usage from an OPNsense vnStat database.",
     )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show the installed wanusage version and exit.",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     report_parser: argparse.ArgumentParser = subparsers.add_parser(
         "report",
         help="Generate a WAN usage report.",
+        description="Generate a WAN usage report from the configured OPNsense router.",
     )
     report_parser.add_argument(
         "--config",
@@ -31,6 +40,11 @@ def build_parser() -> argparse.ArgumentParser:
     report_parser.add_argument(
         "--email",
         help="Optional recipient email address.",
+    )
+    report_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print full exception tracebacks when a command fails.",
     )
 
     return parser
@@ -53,8 +67,7 @@ def _handle_report(args: argparse.Namespace) -> None:
         vnstat_client = VnstatClient(command_runner=command_runner, config=app_config.vnstat)
         report = vnstat_client.build_usage_report(date.today())
     except (ConfigError, RemoteCommandError, OSError, ValueError) as error:
-        print(f"wanusage: {error}", file=sys.stderr)
-        raise SystemExit(1) from error
+        _handle_error(error, debug=args.debug)
 
     formatted_report: str = format_report(report)
 
@@ -66,10 +79,17 @@ def _handle_report(args: argparse.Namespace) -> None:
                 body=formatted_report,
             )
         except EmailError as error:
-            print(f"wanusage: {error}", file=sys.stderr)
-            raise SystemExit(1) from error
+            _handle_error(error, debug=args.debug)
 
     print(formatted_report)
+
+
+def _handle_error(error: Exception, *, debug: bool) -> None:
+    if debug:
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+    else:
+        print(f"wanusage: {error}", file=sys.stderr)
+    raise SystemExit(1) from error
 
 
 if __name__ == "__main__":

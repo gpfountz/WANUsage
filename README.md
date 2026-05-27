@@ -28,12 +28,22 @@ file; the app rejects unknown host keys.
 ```bash
 wanusage report --config wanusage.toml
 wanusage report --config wanusage.toml --email you@example.com
+wanusage report --config wanusage.toml --debug
+wanusage --version
+wanusage --help
+wanusage report --help
 ```
 
 For local development without installing the console script globally:
 
 ```bash
 .venv/bin/wanusage report --config wanusage.toml
+```
+
+Example cron entry for a daily email report shortly after midnight:
+
+```cron
+10 0 * * * /path/to/WANUsage/.venv/bin/wanusage report --config /path/to/WANUsage/wanusage.toml --email you@example.com
 ```
 
 ## Development
