@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-import pytest # type: ignore
+import pytest
 
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
 from wanusage.reporting import format_bytes, format_report, sort_daily_usage

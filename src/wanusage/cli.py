@@ -36,7 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--email",
-        help="Optional recipient email address.",
+        action="store_true",
+        help="Send the report to email.to_address from the config file.",
     )
     parser.add_argument(
         "--debug",
@@ -75,7 +76,6 @@ def _handle_report(args: argparse.Namespace) -> None:
         if args.email:
             try:
                 EmailSender(app_config.email).send_report(
-                    recipient=args.email,
                     subject=f"WAN usage report for {report.generated_for.isoformat()}",
                     body=formatted_report,
                 )

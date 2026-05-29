@@ -27,6 +27,7 @@ class EmailConfig:
     username: str
     password: str
     from_address: str
+    to_address: str
     use_tls: bool
 
 
@@ -69,6 +70,7 @@ def load_config(config_path: Path) -> AppConfig:
             username=_optional_str(email_section, "username"),
             password=_optional_str(email_section, "password"),
             from_address=_optional_str(email_section, "from_address"),
+            to_address=_optional_str(email_section, "to_address"),
             use_tls=_optional_bool(email_section, "use_tls", default=True),
         ),
     )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from email.message import EmailMessage
 
-import pytest # type: ignore
+import pytest
 
 from wanusage.config import EmailConfig
 from wanusage.emailer import EmailError, EmailSender
@@ -53,12 +53,12 @@ def test_send_report_uses_smtp_config(monkeypatch: pytest.MonkeyPatch) -> None:
             username="mailer",
             password="secret",
             from_address="wan@example.com",
+            to_address="recipient@example.com",
             use_tls=True,
         )
     )
 
     sender.send_report(
-        recipient="recipient@example.com",
         subject="WAN report",
         body="Report body",
     )
@@ -83,13 +83,13 @@ def test_send_report_rejects_missing_smtp_host() -> None:
             username="",
             password="",
             from_address="wan@example.com",
+            to_address="recipient@example.com",
             use_tls=True,
         )
     )
 
     with pytest.raises(EmailError, match="email.smtp_host"):
         sender.send_report(
-            recipient="recipient@example.com",
             subject="WAN report",
             body="Report body",
         )
@@ -104,12 +104,12 @@ def test_send_report_without_username_skips_login(monkeypatch: pytest.MonkeyPatc
             username="",
             password="",
             from_address="wan@example.com",
+            to_address="recipient@example.com",
             use_tls=False,
         )
     )
 
     sender.send_report(
-        recipient="recipient@example.com",
         subject="WAN report",
         body="Report body",
     )
@@ -117,3 +117,23 @@ def test_send_report_without_username_skips_login(monkeypatch: pytest.MonkeyPatc
     instance: FakeSmtp = FakeSmtp.instances[0]
     assert instance.started_tls is False
     assert instance.login_args is None
+
+
+def test_send_report_rejects_missing_to_address() -> None:
+    sender = EmailSender(
+        EmailConfig(
+            smtp_host="smtp.example.com",
+            smtp_port=587,
+            username="",
+            password="",
+            from_address="wan@example.com",
+            to_address="",
+            use_tls=True,
+        )
+    )
+
+    with pytest.raises(EmailError, match="email.to_address"):
+        sender.send_report(
+            subject="WAN report",
+            body="Report body",
+        )

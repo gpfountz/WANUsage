@@ -16,12 +16,12 @@ class EmailSender:
     config: EmailConfig
     timeout_seconds: int = 30
 
-    def send_report(self, recipient: str, subject: str, body: str) -> None:
+    def send_report(self, subject: str, body: str) -> None:
         self._validate_config()
 
         message: EmailMessage = EmailMessage()
         message["From"] = self.config.from_address
-        message["To"] = recipient
+        message["To"] = self.config.to_address
         message["Subject"] = subject
         message.set_content(body)
 
@@ -47,6 +47,8 @@ class EmailSender:
             missing_values.append("email.smtp_host")
         if not self.config.from_address:
             missing_values.append("email.from_address")
+        if not self.config.to_address:
+            missing_values.append("email.to_address")
         if self.config.username and not self.config.password:
             missing_values.append("email.password")
 
