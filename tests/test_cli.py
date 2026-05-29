@@ -16,19 +16,31 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
 
     output: str = capsys.readouterr().out
     assert error.value.code == 0
-    assert "--help" in output
-    assert "--version" in output
+    assert "-c, --config CONFIG" in output
     assert "--config" in output
-    assert "Defaults to wanusage.toml in the" in output
+    assert "Defaults to wanusage.toml in" in output
     assert "current directory." in output
-    assert "--email" in output
-    assert "email.to_address" in output
     assert "--debug" in output
+    assert "-D, --debug" in output
     assert "--days" in output
+    assert "-d, --days DAYS" in output
+    assert "--email" in output
+    assert "-e, --email" in output
+    assert "email.to_address" in output
+    assert "--help" in output
+    assert "-h, --help" in output
+    assert "--version" in output
+    assert "-v, --version" in output
     assert "--months" not in output
     assert "from -1 to" in output
     assert "vnstat.default_days" in output
-    assert "hide daily usage" in output
+    assert "hide daily" in output
+    assert "usage." in output
+    assert output.index("--config") < output.index("--days")
+    assert output.index("--days") < output.index("--debug")
+    assert output.index("--debug") < output.index("--email")
+    assert output.index("--email") < output.index("--help")
+    assert output.index("--help") < output.index("--version")
 
 
 def test_version_flag_prints_version(capsys: pytest.CaptureFixture[str]) -> None:
@@ -36,6 +48,17 @@ def test_version_flag_prints_version(capsys: pytest.CaptureFixture[str]) -> None
 
     with pytest.raises(SystemExit) as error:
         parser.parse_args(["--version"])
+
+    output: str = capsys.readouterr().out
+    assert error.value.code == 0
+    assert output.strip() == f"wanusage {__version__}"
+
+
+def test_short_version_flag_prints_version(capsys: pytest.CaptureFixture[str]) -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    with pytest.raises(SystemExit) as error:
+        parser.parse_args(["-v"])
 
     output: str = capsys.readouterr().out
     assert error.value.code == 0
@@ -52,10 +75,26 @@ def test_config_defaults_to_current_directory_wanusage_toml() -> None:
     assert args.email is False
 
 
+def test_short_config_flag_sets_config_path() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["-c", "custom.toml"])
+
+    assert args.config == "custom.toml"
+
+
 def test_email_flag_accepts_no_value() -> None:
     parser: argparse.ArgumentParser = build_parser()
 
     args: argparse.Namespace = parser.parse_args(["--email"])
+
+    assert args.email is True
+
+
+def test_short_email_flag_accepts_no_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["-e"])
 
     assert args.email is True
 
@@ -76,6 +115,22 @@ def test_days_accepts_values_from_negative_1_to_60(value: str) -> None:
     args: argparse.Namespace = parser.parse_args(["--days", value])
 
     assert args.days == int(value)
+
+
+def test_short_days_flag_accepts_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["-d", "14"])
+
+    assert args.days == 14
+
+
+def test_short_debug_flag_sets_debug() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["-D"])
+
+    assert args.debug is True
 
 
 @pytest.mark.parametrize(

@@ -27,13 +27,15 @@ file; the app rejects unknown host keys.
 
 ```bash
 wanusage
+wanusage --help
+wanusage --version
 wanusage --config wanusage.toml
 wanusage --days 14
-wanusage --config wanusage.toml --email
-wanusage --config wanusage.toml --debug
-wanusage --version
-wanusage --help
+wanusage --debug
+wanusage --email
 ```
+
+Short options are also available: `-c`, `-d`, `-D`, `-e`, `-h`, and `-v`.
 
 `--days` accepts values from -1 to 60 and overrides `vnstat.default_days` from
 `wanusage.toml`. Use `0` to show only the current day, or `-1` to hide the daily
