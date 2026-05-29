@@ -26,8 +26,9 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert "--debug" in output
     assert "--days" in output
     assert "--months" not in output
-    assert "from 1 to" in output
-    assert "60. Defaults to 7." in output
+    assert "from -1 to" in output
+    assert "vnstat.default_days" in output
+    assert "hide daily usage" in output
 
 
 def test_version_flag_prints_version(capsys: pytest.CaptureFixture[str]) -> None:
@@ -47,7 +48,7 @@ def test_config_defaults_to_current_directory_wanusage_toml() -> None:
     args: argparse.Namespace = parser.parse_args([])
 
     assert args.config == "wanusage.toml"
-    assert args.days == 7
+    assert args.days is None
     assert args.email is False
 
 
@@ -68,18 +69,19 @@ def test_email_flag_rejects_value() -> None:
     assert error.value.code == 2
 
 
-def test_days_accepts_values_from_1_to_60() -> None:
+@pytest.mark.parametrize("value", ["-1", "0", "60"])
+def test_days_accepts_values_from_negative_1_to_60(value: str) -> None:
     parser: argparse.ArgumentParser = build_parser()
 
-    args: argparse.Namespace = parser.parse_args(["--days", "60"])
+    args: argparse.Namespace = parser.parse_args(["--days", value])
 
-    assert args.days == 60
+    assert args.days == int(value)
 
 
 @pytest.mark.parametrize(
     "value",
     [
-        "0",
+        "-2",
         "61",
     ],
 )

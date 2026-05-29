@@ -7,20 +7,20 @@ def format_report(report: UsageReport) -> str:
     lines: list[str] = [
         f"WAN usage report for {report.generated_for.isoformat()}",
         "",
-        f"Last {report.day_count} completed day{'s' if report.day_count != 1 else ''}:",
     ]
 
-    if report.daily_usage:
-        for daily_usage in report.daily_usage:
-            lines.append(
-                f"  {daily_usage.usage_date.isoformat()}: "
-                f"{format_bytes(daily_usage.total_bytes)}"
-            )
-    else:
-        lines.append("  No daily usage records found.")
-
-    lines.append("")
     lines.extend(_format_period(period) for period in report.billing_periods)
+
+    if report.day_count >= 0:
+        lines.extend(["", _daily_usage_heading(report.day_count)])
+        if report.daily_usage:
+            for daily_usage in report.daily_usage:
+                lines.append(
+                    f"  {daily_usage.usage_date.isoformat()}: "
+                    f"{format_bytes(daily_usage.total_bytes)}"
+                )
+        else:
+            lines.append("  No daily usage records found.")
 
     return "\n".join(lines)
 
@@ -47,6 +47,12 @@ def _format_period(period: UsagePeriod) -> str:
         f"{period.name} ({period.start_date.isoformat()} - "
         f"{period.end_date.isoformat()}): {format_bytes(period.total_bytes)}"
     )
+
+
+def _daily_usage_heading(day_count: int) -> str:
+    if day_count == 0:
+        return "Current day:"
+    return f"Last {day_count} completed day{'s' if day_count != 1 else ''} and current day:"
 
 
 def sort_daily_usage(values: list[DailyUsage]) -> tuple[DailyUsage, ...]:

@@ -57,6 +57,9 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     assert formatted_report.index("Previous billing period") < formatted_report.index(
         "Current billing period"
     )
+    assert formatted_report.index("Current billing period") < formatted_report.index(
+        "Last 7 completed days and current day"
+    )
 
 
 def test_format_report_uses_requested_day_count_in_heading() -> None:
@@ -67,7 +70,30 @@ def test_format_report_uses_requested_day_count_in_heading() -> None:
         billing_periods=(),
     )
 
-    assert "Last 1 completed day:" in format_report(report)
+    assert "Last 1 completed day and current day:" in format_report(report)
+
+
+def test_format_report_uses_current_day_heading_for_zero_days() -> None:
+    report = UsageReport(
+        generated_for=date(2026, 5, 26),
+        day_count=0,
+        daily_usage=(),
+        billing_periods=(),
+    )
+
+    assert "Current day:" in format_report(report)
+
+
+def test_format_report_omits_daily_section_for_negative_days() -> None:
+    report = UsageReport(
+        generated_for=date(2026, 5, 26),
+        day_count=-1,
+        daily_usage=(),
+        billing_periods=(),
+    )
+
+    assert "Current day:" not in format_report(report)
+    assert "completed day" not in format_report(report)
 
 
 def test_sort_daily_usage_orders_by_date() -> None:

@@ -18,6 +18,7 @@ class RouterConfig:
 class VnstatConfig:
     database_path: str
     interface_id: int
+    default_days: int
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,12 @@ def load_config(config_path: Path) -> AppConfig:
         vnstat=VnstatConfig(
             database_path=_required_str(vnstat_section, "database_path"),
             interface_id=_required_int(vnstat_section, "interface_id"),
+            default_days=_bounded_int(
+                vnstat_section,
+                "default_days",
+                minimum=-1,
+                maximum=60,
+            ),
         ),
         email=EmailConfig(
             smtp_host=_optional_str(email_section, "smtp_host"),
@@ -115,6 +122,13 @@ def _optional_int(section: dict[str, Any], key: str, *, default: int) -> int:
     value: Any = section.get(key, default)
     if not isinstance(value, int):
         raise ConfigError(f"Config value must be an integer: {key}")
+    return value
+
+
+def _bounded_int(section: dict[str, Any], key: str, *, minimum: int, maximum: int) -> int:
+    value: int = _required_int(section, key)
+    if value < minimum or value > maximum:
+        raise ConfigError(f"Config value must be between {minimum} and {maximum}: {key}")
     return value
 
 

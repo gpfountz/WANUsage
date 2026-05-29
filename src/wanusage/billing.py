@@ -20,6 +20,10 @@ def calculate_completed_days(today: date, day_count: int) -> DateWindow:
     return DateWindow(start_date=start_date, end_date=end_date)
 
 
+def calculate_current_day(today: date) -> DateWindow:
+    return DateWindow(start_date=today, end_date=today + timedelta(days=1))
+
+
 def calculate_current_billing_window(today: date, cycle_day: int = 14) -> DateWindow:
     if today.day >= cycle_day:
         start_date: date = date(today.year, today.month, cycle_day)
