@@ -21,6 +21,7 @@ ssh_key_path = "~/router-key"
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_id = 1
 default_days = 7
+daily_alert_gb = 50
 
 [email]
 smtp_host = "smtp.example.com"
@@ -42,6 +43,7 @@ to_address = "recipient@example.com"
     assert config.vnstat.database_path == "/var/lib/vnstat/vnstat.db"
     assert config.vnstat.interface_id == 1
     assert config.vnstat.default_days == 7
+    assert config.vnstat.daily_alert_gb == 50
     assert config.email.smtp_host == "smtp.example.com"
     assert config.email.from_address == "wan@example.com"
     assert config.email.to_address == "recipient@example.com"
@@ -70,9 +72,33 @@ ssh_key_path = "~/router-key"
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_id = 1
 default_days = 61
+daily_alert_gb = 50
 """,
         encoding="utf-8",
     )
 
     with pytest.raises(ConfigError, match="default_days"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_daily_alert_gb_outside_range(tmp_path: Path) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_path.write_text(
+        """
+[router]
+host = "192.168.1.1"
+port = 22
+username = "root"
+ssh_key_path = "~/router-key"
+
+[vnstat]
+database_path = "/var/lib/vnstat/vnstat.db"
+interface_id = 1
+default_days = 7
+daily_alert_gb = 1000
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="daily_alert_gb"):
         load_config(config_path)

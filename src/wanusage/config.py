@@ -19,6 +19,7 @@ class VnstatConfig:
     database_path: str
     interface_id: int
     default_days: int
+    daily_alert_gb: int
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,12 @@ def load_config(config_path: Path) -> AppConfig:
                 "default_days",
                 minimum=-1,
                 maximum=60,
+            ),
+            daily_alert_gb=_bounded_int(
+                vnstat_section,
+                "daily_alert_gb",
+                minimum=0,
+                maximum=999,
             ),
         ),
         email=EmailConfig(
