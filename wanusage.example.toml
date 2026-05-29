@@ -7,6 +7,7 @@ ssh_key_path = "/Users/greg/.ssh/opnsense"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_id = 1
+default_days = 7
 
 [email]
 smtp_host = ""

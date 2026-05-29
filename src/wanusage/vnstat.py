@@ -8,6 +8,7 @@ from wanusage.billing import (
     DateWindow,
     calculate_billing_windows,
     calculate_completed_days,
+    calculate_current_day,
 )
 from wanusage.config import VnstatConfig
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
@@ -26,13 +27,12 @@ class VnstatClient:
         *,
         day_count: int = 7,
     ) -> UsageReport:
-        completed_days_window: DateWindow = calculate_completed_days(today, day_count)
         billing_windows: tuple[DateWindow, ...] = calculate_billing_windows(today, 2)
 
         return UsageReport(
             generated_for=today,
             day_count=day_count,
-            daily_usage=self.fetch_daily_usage(completed_days_window),
+            daily_usage=self.fetch_report_daily_usage(today, day_count),
             billing_periods=tuple(
                 self._build_usage_period(window, index, len(billing_windows))
                 for index, window in enumerate(billing_windows)
@@ -46,6 +46,16 @@ class VnstatClient:
             end_date=window.end_date,
             total_bytes=self.fetch_total_usage(window),
         )
+
+    def fetch_report_daily_usage(self, today: date, day_count: int) -> tuple[DailyUsage, ...]:
+        if day_count < 0:
+            return ()
+
+        values: list[DailyUsage] = []
+        if day_count > 0:
+            values.extend(self.fetch_daily_usage(calculate_completed_days(today, day_count)))
+        values.extend(self.fetch_daily_usage(calculate_current_day(today)))
+        return sort_daily_usage(values)
 
     def fetch_daily_usage(self, window: DateWindow) -> tuple[DailyUsage, ...]:
         query: str = (

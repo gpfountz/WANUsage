@@ -5,7 +5,7 @@ Command line reporting for WAN usage from an OPNsense vnStat SQLite database.
 The app is designed to run on macOS or Linux, connect to the router over SSH, query
 `/var/lib/vnstat/vnstat.db`, and report:
 
-- the last 7 completed days of WAN traffic
+- the configured number of previous completed days plus the current day
 - the current billing period, using `>= 14th` and `< next 14th`
 - the previous billing period, using the same half-open billing window
 
@@ -35,9 +35,10 @@ wanusage --version
 wanusage --help
 ```
 
-`--days` accepts values from 1 to 60. By default, the report shows 7 completed
-days. The billing section always shows the previous billing month and the current
-billing month.
+`--days` accepts values from -1 to 60 and overrides `vnstat.default_days` from
+`wanusage.toml`. Use `0` to show only the current day, or `-1` to hide the daily
+usage section. The billing section always shows the previous billing month and
+the current billing month.
 
 `--email` sends the report to `email.to_address` from `wanusage.toml`.
 

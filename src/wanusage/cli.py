@@ -46,9 +46,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--days",
-        type=_bounded_int("days", minimum=1, maximum=60),
-        default=7,
-        help="Number of completed days to show in the report, from 1 to 60. Defaults to 7.",
+        type=_bounded_int("days", minimum=-1, maximum=60),
+        help=(
+            "Number of previous completed days to show, from -1 to 60. "
+            "Defaults to vnstat.default_days from the config file. "
+            "Use 0 for current day only, or -1 to hide daily usage."
+        ),
     )
 
     return parser
@@ -69,7 +72,7 @@ def _handle_report(args: argparse.Namespace) -> None:
         vnstat_client = VnstatClient(command_runner=command_runner, config=app_config.vnstat)
         report = vnstat_client.build_usage_report(
             date.today(),
-            day_count=args.days,
+            day_count=args.days if args.days is not None else app_config.vnstat.default_days,
         )
         formatted_report: str = format_report(report)
 
