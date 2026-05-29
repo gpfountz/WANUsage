@@ -44,6 +44,12 @@ the current billing month.
 
 `--email` sends the report to `email.to_address` from `wanusage.toml`.
 
+`vnstat.daily_alert_gb` sends one alert email per run with subject
+`daily high usage alert` when an unalerted daily usage value exceeds the
+configured GiB threshold. Alert state is stored next to the config file in
+`wanusage-alert-state.txt`, which records the most recent date that triggered an
+alert.
+
 For local development without installing the console script globally:
 
 ```bash

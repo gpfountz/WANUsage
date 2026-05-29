@@ -26,6 +26,7 @@ def test_fetch_daily_usage_queries_window_and_parses_rows() -> None:
             database_path="/var/lib/vnstat/vnstat.db",
             interface_id=1,
             default_days=7,
+            daily_alert_gb=50,
         ),
     )
 
@@ -48,6 +49,7 @@ def test_fetch_total_usage_returns_zero_for_empty_output() -> None:
             database_path="/var/lib/vnstat/vnstat.db",
             interface_id=1,
             default_days=7,
+            daily_alert_gb=50,
         ),
     )
 
@@ -69,6 +71,7 @@ def test_build_usage_report_fetches_all_periods() -> None:
             database_path="/var/lib/vnstat/vnstat.db",
             interface_id=1,
             default_days=7,
+            daily_alert_gb=50,
         ),
     )
 
@@ -98,6 +101,7 @@ def test_build_usage_report_supports_custom_day_count() -> None:
             database_path="/var/lib/vnstat/vnstat.db",
             interface_id=1,
             default_days=7,
+            daily_alert_gb=50,
         ),
     )
 
@@ -123,6 +127,7 @@ def test_build_usage_report_with_zero_days_fetches_only_current_day() -> None:
             database_path="/var/lib/vnstat/vnstat.db",
             interface_id=1,
             default_days=7,
+            daily_alert_gb=50,
         ),
     )
 
@@ -145,6 +150,7 @@ def test_build_usage_report_with_negative_days_skips_daily_usage() -> None:
             database_path="/var/lib/vnstat/vnstat.db",
             interface_id=1,
             default_days=7,
+            daily_alert_gb=50,
         ),
     )
 

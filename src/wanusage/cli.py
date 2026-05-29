@@ -8,6 +8,12 @@ from datetime import date
 from pathlib import Path
 
 from wanusage import __version__
+from wanusage.alerts import (
+    ALERT_SUBJECT,
+    AlertStateStore,
+    alert_state_path_for_config,
+    choose_alert,
+)
 from wanusage.config import ConfigError, load_config
 from wanusage.emailer import EmailError, EmailSender
 from wanusage.reporting import format_report
@@ -87,6 +93,24 @@ def _handle_report(args: argparse.Namespace) -> None:
             day_count=args.days if args.days is not None else app_config.vnstat.default_days,
         )
         formatted_report: str = format_report(report)
+        alert_store = AlertStateStore(alert_state_path_for_config(config_path))
+        alert_decision = choose_alert(
+            report.daily_usage,
+            daily_alert_gb=app_config.vnstat.daily_alert_gb,
+            last_alert_date=alert_store.read_last_alert_date(),
+        )
+
+        if alert_decision.should_send:
+            try:
+                EmailSender(app_config.email).send_report(
+                    subject=ALERT_SUBJECT,
+                    body=formatted_report,
+                )
+            except EmailError as error:
+                _handle_error(error, debug=args.debug)
+
+            if alert_decision.alert_date is not None:
+                alert_store.write_last_alert_date(alert_decision.alert_date)
 
         if args.email:
             try:
