@@ -29,6 +29,8 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert "email.to_address" in output
     assert "--help" in output
     assert "-h, --help" in output
+    assert "--quiet" in output
+    assert "-q, --quiet" in output
     assert "--version" in output
     assert "-v, --version" in output
     assert "--months" not in output
@@ -40,7 +42,8 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert output.index("--days") < output.index("--debug")
     assert output.index("--debug") < output.index("--email")
     assert output.index("--email") < output.index("--help")
-    assert output.index("--help") < output.index("--version")
+    assert output.index("--help") < output.index("--quiet")
+    assert output.index("--quiet") < output.index("--version")
 
 
 def test_version_flag_prints_version(capsys: pytest.CaptureFixture[str]) -> None:
@@ -73,6 +76,7 @@ def test_config_defaults_to_current_directory_wanusage_toml() -> None:
     assert args.config == "wanusage.toml"
     assert args.days is None
     assert args.email is False
+    assert args.quiet is False
 
 
 def test_short_config_flag_sets_config_path() -> None:
@@ -131,6 +135,22 @@ def test_short_debug_flag_sets_debug() -> None:
     args: argparse.Namespace = parser.parse_args(["-D"])
 
     assert args.debug is True
+
+
+def test_quiet_flag_accepts_no_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["--quiet"])
+
+    assert args.quiet is True
+
+
+def test_short_quiet_flag_accepts_no_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["-q"])
+
+    assert args.quiet is True
 
 
 @pytest.mark.parametrize(
