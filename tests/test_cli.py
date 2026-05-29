@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-import pytest # type: ignore
+import pytest
 
 from wanusage import __version__
 from wanusage.cli import build_parser
@@ -22,6 +22,7 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert "Defaults to wanusage.toml in the" in output
     assert "current directory." in output
     assert "--email" in output
+    assert "email.to_address" in output
     assert "--debug" in output
     assert "--days" in output
     assert "--months" not in output
@@ -47,6 +48,24 @@ def test_config_defaults_to_current_directory_wanusage_toml() -> None:
 
     assert args.config == "wanusage.toml"
     assert args.days == 7
+    assert args.email is False
+
+
+def test_email_flag_accepts_no_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["--email"])
+
+    assert args.email is True
+
+
+def test_email_flag_rejects_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    with pytest.raises(SystemExit) as error:
+        parser.parse_args(["--email", "recipient@example.com"])
+
+    assert error.value.code == 2
 
 
 def test_days_accepts_values_from_1_to_60() -> None:

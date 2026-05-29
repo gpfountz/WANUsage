@@ -29,7 +29,7 @@ file; the app rejects unknown host keys.
 wanusage
 wanusage --config wanusage.toml
 wanusage --days 14
-wanusage --config wanusage.toml --email you@example.com
+wanusage --config wanusage.toml --email
 wanusage --config wanusage.toml --debug
 wanusage --version
 wanusage --help
@@ -38,6 +38,8 @@ wanusage --help
 `--days` accepts values from 1 to 60. By default, the report shows 7 completed
 days. The billing section always shows the previous billing month and the current
 billing month.
+
+`--email` sends the report to `email.to_address` from `wanusage.toml`.
 
 For local development without installing the console script globally:
 
@@ -48,7 +50,7 @@ For local development without installing the console script globally:
 Example cron entry for a daily email report shortly after midnight:
 
 ```cron
-10 0 * * * /path/to/WANUsage/.venv/bin/wanusage --config /path/to/WANUsage/wanusage.toml --email you@example.com
+10 0 * * * /path/to/WANUsage/.venv/bin/wanusage --config /path/to/WANUsage/wanusage.toml --email
 ```
 
 ## Development
