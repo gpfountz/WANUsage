@@ -33,9 +33,10 @@ wanusage --config wanusage.toml
 wanusage --days 14
 wanusage --debug
 wanusage --email
+wanusage --quiet
 ```
 
-Short options are also available: `-c`, `-d`, `-D`, `-e`, `-h`, and `-v`.
+Short options are also available: `-c`, `-d`, `-D`, `-e`, `-h`, `-q`, and `-v`.
 
 `--days` accepts values from -1 to 60 and overrides `vnstat.default_days` from
 `wanusage.toml`. Use `0` to show only the current day, or `-1` to hide the daily
@@ -43,6 +44,9 @@ usage section. The billing section always shows the previous billing month and
 the current billing month.
 
 `--email` sends the report to `email.to_address` from `wanusage.toml`.
+
+`--quiet` suppresses stdout output only. Email reports and alert emails still
+process normally.
 
 `vnstat.daily_alert_gb` sends one alert email per run with subject
 `daily high usage alert` when an unalerted daily usage value exceeds the

@@ -65,6 +65,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show this help message and exit.",
     )
     parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Suppress writing the usage report to stdout.",
+    )
+    parser.add_argument(
         "-v",
         "--version",
         action="version",
@@ -121,7 +127,8 @@ def _handle_report(args: argparse.Namespace) -> None:
             except EmailError as error:
                 _handle_error(error, debug=args.debug)
 
-        print(formatted_report)
+        if not args.quiet:
+            print(formatted_report)
     except (ConfigError, RemoteCommandError, OSError, ValueError) as error:
         _handle_error(error, debug=args.debug)
 
