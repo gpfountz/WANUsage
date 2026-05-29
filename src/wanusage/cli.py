@@ -19,14 +19,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         prog="wanusage",
         description="Report WAN usage from an OPNsense vnStat database.",
+        add_help=False,
     )
     parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s {__version__}",
-        help="Show the installed wanusage version and exit.",
-    )
-    parser.add_argument(
+        "-c",
         "--config",
         default="wanusage.toml",
         help=(
@@ -35,16 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--email",
-        action="store_true",
-        help="Send the report to email.to_address from the config file.",
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Print full exception tracebacks when a command fails.",
-    )
-    parser.add_argument(
+        "-d",
         "--days",
         type=_bounded_int("days", minimum=-1, maximum=60),
         help=(
@@ -52,6 +39,31 @@ def build_parser() -> argparse.ArgumentParser:
             "Defaults to vnstat.default_days from the config file. "
             "Use 0 for current day only, or -1 to hide daily usage."
         ),
+    )
+    parser.add_argument(
+        "-D",
+        "--debug",
+        action="store_true",
+        help="Print full exception tracebacks when a command fails.",
+    )
+    parser.add_argument(
+        "-e",
+        "--email",
+        action="store_true",
+        help="Send the report to email.to_address from the config file.",
+    )
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help="Show this help message and exit.",
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show the installed wanusage version and exit.",
     )
 
     return parser
