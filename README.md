@@ -75,6 +75,9 @@ python -m pip install -e ".[dev]"
 pytest
 ```
 
+## Distribution
+pyinstaller wanusage.spec
+
 ## Current Status
 
 The app can now load local TOML config, connect over SSH, query vnStat with the
