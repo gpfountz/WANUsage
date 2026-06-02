@@ -24,7 +24,7 @@ def test_fetch_daily_usage_queries_window_and_parses_rows() -> None:
         command_runner=command_runner,
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
-            interface_id=1,
+            interface_name="eth0",
             default_days=7,
             daily_alert_gb=50,
         ),
@@ -36,9 +36,11 @@ def test_fetch_daily_usage_queries_window_and_parses_rows() -> None:
 
     assert [value.total_bytes for value in values] == [1024, 2048]
     assert "sqlite3 -readonly -batch -separator '|'" in command_runner.commands[0]
+    assert "join interface on interface.id = day.interface" in command_runner.commands[0]
     assert "2026-05-19" in command_runner.commands[0]
     assert "2026-05-26" in command_runner.commands[0]
-    assert "interface = 1" in command_runner.commands[0]
+    assert "interface.name" in command_runner.commands[0]
+    assert "eth0" in command_runner.commands[0]
 
 
 def test_fetch_total_usage_returns_zero_for_empty_output() -> None:
@@ -47,7 +49,7 @@ def test_fetch_total_usage_returns_zero_for_empty_output() -> None:
         command_runner=command_runner,
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
-            interface_id=1,
+            interface_name="eth0",
             default_days=7,
             daily_alert_gb=50,
         ),
@@ -69,7 +71,7 @@ def test_build_usage_report_fetches_all_periods() -> None:
         command_runner=command_runner,
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
-            interface_id=1,
+            interface_name="eth0",
             default_days=7,
             daily_alert_gb=50,
         ),
@@ -99,7 +101,7 @@ def test_build_usage_report_supports_custom_day_count() -> None:
         command_runner=command_runner,
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
-            interface_id=1,
+            interface_name="eth0",
             default_days=7,
             daily_alert_gb=50,
         ),
@@ -125,7 +127,7 @@ def test_build_usage_report_with_zero_days_fetches_only_current_day() -> None:
         command_runner=command_runner,
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
-            interface_id=1,
+            interface_name="eth0",
             default_days=7,
             daily_alert_gb=50,
         ),
@@ -148,7 +150,7 @@ def test_build_usage_report_with_negative_days_skips_daily_usage() -> None:
         command_runner=command_runner,
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
-            interface_id=1,
+            interface_name="eth0",
             default_days=7,
             daily_alert_gb=50,
         ),

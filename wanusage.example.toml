@@ -6,7 +6,7 @@ ssh_key_path = "/Users/greg/.ssh/opnsense"
 
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
-interface_id = 1
+interface_name = "eth0"
 default_days = 7
 daily_alert_gb = 0
 
