@@ -17,7 +17,7 @@ class RouterConfig:
 @dataclass(frozen=True)
 class VnstatConfig:
     database_path: str
-    interface_id: int
+    interface_name: str
     default_days: int
     daily_alert_gb: int
 
@@ -64,7 +64,7 @@ def load_config(config_path: Path) -> AppConfig:
         ),
         vnstat=VnstatConfig(
             database_path=_required_str(vnstat_section, "database_path"),
-            interface_id=_required_int(vnstat_section, "interface_id"),
+            interface_name=_required_str(vnstat_section, "interface_name"),
             default_days=_bounded_int(
                 vnstat_section,
                 "default_days",

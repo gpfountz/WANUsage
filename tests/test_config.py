@@ -19,7 +19,7 @@ ssh_key_path = "~/router-key"
 
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
-interface_id = 1
+interface_name = "eth0"
 default_days = 7
 daily_alert_gb = 50
 
@@ -41,7 +41,7 @@ to_address = "recipient@example.com"
     assert config.router.username == "root"
     assert config.router.ssh_key_path == Path("~/router-key").expanduser()
     assert config.vnstat.database_path == "/var/lib/vnstat/vnstat.db"
-    assert config.vnstat.interface_id == 1
+    assert config.vnstat.interface_name == "eth0"
     assert config.vnstat.default_days == 7
     assert config.vnstat.daily_alert_gb == 50
     assert config.email.smtp_host == "smtp.example.com"
@@ -70,7 +70,7 @@ ssh_key_path = "~/router-key"
 
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
-interface_id = 1
+interface_name = "eth0"
 default_days = 61
 daily_alert_gb = 50
 """,
@@ -93,7 +93,7 @@ ssh_key_path = "~/router-key"
 
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
-interface_id = 1
+interface_name = "eth0"
 default_days = 7
 daily_alert_gb = 1000
 """,

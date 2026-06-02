@@ -23,6 +23,9 @@ The SSH key path may point at the private key used with an OpenSSH certificate.
 The router host key must already be trusted in the running user's `known_hosts`
 file; the app rejects unknown host keys.
 
+Set `vnstat.interface_name` to the interface name stored in vnStat's `interface`
+table for the WAN interface.
+
 ## Usage
 
 ```bash

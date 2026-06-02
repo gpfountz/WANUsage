@@ -58,25 +58,29 @@ class VnstatClient:
         return sort_daily_usage(values)
 
     def fetch_daily_usage(self, window: DateWindow) -> tuple[DailyUsage, ...]:
+        interface_name: str = _sql_string(self.config.interface_name)
         query: str = (
-            "select date, sum(rx) + sum(tx) as total "
+            "select day.date, sum(day.rx) + sum(day.tx) as total "
             "from day "
-            f"where date >= '{window.start_date.isoformat()}' "
-            f"and date < '{window.end_date.isoformat()}' "
-            f"and interface = {self.config.interface_id} "
-            "group by date "
-            "order by date;"
+            "join interface on interface.id = day.interface "
+            f"where day.date >= '{window.start_date.isoformat()}' "
+            f"and day.date < '{window.end_date.isoformat()}' "
+            f"and interface.name = {interface_name} "
+            "group by day.date "
+            "order by day.date;"
         )
         output: str = self.command_runner.run(_sqlite_command(self.config.database_path, query))
         return sort_daily_usage(_parse_daily_usage(output))
 
     def fetch_total_usage(self, window: DateWindow) -> int:
+        interface_name: str = _sql_string(self.config.interface_name)
         query: str = (
-            "select coalesce(sum(rx) + sum(tx), 0) as total "
+            "select coalesce(sum(day.rx) + sum(day.tx), 0) as total "
             "from day "
-            f"where date >= '{window.start_date.isoformat()}' "
-            f"and date < '{window.end_date.isoformat()}' "
-            f"and interface = {self.config.interface_id};"
+            "join interface on interface.id = day.interface "
+            f"where day.date >= '{window.start_date.isoformat()}' "
+            f"and day.date < '{window.end_date.isoformat()}' "
+            f"and interface.name = {interface_name};"
         )
         output: str = self.command_runner.run(_sqlite_command(self.config.database_path, query))
         return _parse_total_usage(output)
@@ -86,6 +90,10 @@ def _sqlite_command(database_path: str, query: str) -> str:
     quoted_database_path: str = shlex.quote(database_path)
     quoted_query: str = shlex.quote(query)
     return f"sqlite3 -readonly -batch -separator '|' {quoted_database_path} {quoted_query}"
+
+
+def _sql_string(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
 
 
 def _parse_daily_usage(output: str) -> list[DailyUsage]:
