@@ -29,6 +29,9 @@ table for the WAN interface.
 Set `vnstat.billing_cycle_day` from 1 to 31. When that day does not exist in a
 month, the billing boundary uses the last day of that month.
 
+The report SQL statements are batched into one remote `sqlite3` process and one
+SSH connection per run.
+
 ## Usage
 
 ```bash
