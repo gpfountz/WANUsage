@@ -25,6 +25,7 @@ def test_fetch_daily_usage_queries_window_and_parses_rows() -> None:
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
             interface_name="eth0",
+            billing_cycle_day=14,
             default_days=7,
             daily_alert_gb=50,
         ),
@@ -50,6 +51,7 @@ def test_fetch_total_usage_returns_zero_for_empty_output() -> None:
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
             interface_name="eth0",
+            billing_cycle_day=14,
             default_days=7,
             daily_alert_gb=50,
         ),
@@ -72,6 +74,7 @@ def test_build_usage_report_fetches_all_periods() -> None:
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
             interface_name="eth0",
+            billing_cycle_day=14,
             default_days=7,
             daily_alert_gb=50,
         ),
@@ -102,6 +105,7 @@ def test_build_usage_report_supports_custom_day_count() -> None:
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
             interface_name="eth0",
+            billing_cycle_day=14,
             default_days=7,
             daily_alert_gb=50,
         ),
@@ -128,6 +132,7 @@ def test_build_usage_report_with_zero_days_fetches_only_current_day() -> None:
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
             interface_name="eth0",
+            billing_cycle_day=14,
             default_days=7,
             daily_alert_gb=50,
         ),
@@ -151,6 +156,7 @@ def test_build_usage_report_with_negative_days_skips_daily_usage() -> None:
         config=VnstatConfig(
             database_path="/var/lib/vnstat/vnstat.db",
             interface_name="eth0",
+            billing_cycle_day=14,
             default_days=7,
             daily_alert_gb=50,
         ),

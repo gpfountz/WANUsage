@@ -26,6 +26,9 @@ file; the app rejects unknown host keys.
 Set `vnstat.interface_name` to the interface name stored in vnStat's `interface`
 table for the WAN interface.
 
+Set `vnstat.billing_cycle_day` from 1 to 31. When that day does not exist in a
+month, the billing boundary uses the last day of that month.
+
 ## Usage
 
 ```bash
