@@ -48,8 +48,8 @@ def format_bytes(byte_count: int) -> str:
 
 def _format_period(period: UsagePeriod) -> str:
     return (
-        f"{period.name} ({period.start_date.isoformat()} - "
-        f"{period.end_date.isoformat()}): {format_bytes(period.total_bytes)}"
+        f"{period.name} ({period.end_date.isoformat()}): "
+        f"{format_bytes(period.total_bytes)}"
     )
 
 
