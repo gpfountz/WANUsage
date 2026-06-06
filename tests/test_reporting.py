@@ -48,17 +48,17 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     formatted_report: str = format_report(report)
 
     assert "WAN usage report for 2026-05-26" in formatted_report
-    assert "2026-05-24: 1.00 KiB" in formatted_report
-    assert "Current billing period (2026-06-14): 1.00 GiB" in formatted_report
-    assert "Previous billing period (2026-05-14): 1.00 TiB" in formatted_report
-    assert "Estimated current billing period usage: 3.00 GiB" in formatted_report
-    assert formatted_report.index("Current billing period") < formatted_report.index(
-        "Estimated current billing period usage"
-    )
-    assert formatted_report.index("Previous billing period") < formatted_report.index(
-        "Current billing period"
-    )
-    assert formatted_report.index("Current billing period") < formatted_report.index(
+    assert "Billing period usage:" in formatted_report
+    assert "Period            | End date   |    Usage" in formatted_report
+    assert "Previous          | 2026-05-14 | 1.00 TiB" in formatted_report
+    assert "Current           | 2026-06-14 | 1.00 GiB" in formatted_report
+    assert "Estimated current | 2026-06-14 | 3.00 GiB" in formatted_report
+    assert "Date       |    Usage" in formatted_report
+    assert "2026-05-24 | 1.00 KiB" in formatted_report
+    assert "2026-05-25 | 2.00 KiB" in formatted_report
+    assert formatted_report.index("Previous") < formatted_report.index("Current")
+    assert formatted_report.index("Current") < formatted_report.index("Estimated current")
+    assert formatted_report.index("Estimated current") < formatted_report.index(
         "Last 7 completed days and current day"
     )
 
