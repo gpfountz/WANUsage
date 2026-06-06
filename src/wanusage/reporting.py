@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import date
 
-from wanusage.models import DailyUsage, UsagePeriod, UsageReport
+from wanusage.models import DailyUsage, UsageReport
 
 
 def format_report(report: UsageReport) -> str:
@@ -17,7 +18,7 @@ def format_report(report: UsageReport) -> str:
     if report.day_count >= 0:
         lines.append("")
         if report.daily_usage:
-            lines.extend(_format_daily_table(report.daily_usage))
+            lines.extend(_format_daily_table(report.daily_usage, report.generated_for))
         else:
             lines.append("  No daily usage records found.")
 
@@ -42,37 +43,35 @@ def format_bytes(byte_count: int) -> str:
 
 
 def _format_billing_table(report: UsageReport) -> list[str]:
-    current_period_index: int = len(report.billing_periods) - 1
-    rows: list[tuple[str, str, str]] = [
+    rows: list[tuple[str, str]] = [
         (
             period.name.removesuffix(" billing period"),
-            (
-                report.generated_for
-                if index == current_period_index
-                else period.end_date
-            ).isoformat(),
             format_bytes(period.total_bytes),
         )
-        for index, period in enumerate(report.billing_periods)
+        for period in report.billing_periods
     ]
-    current_period: UsagePeriod = report.billing_periods[-1]
     rows.append(
         (
-            "Estimated current",
-            current_period.end_date.isoformat(),
+            "Estimated",
             format_bytes(report.estimated_current_period_bytes),
         )
     )
     return _format_table(
-        headers=("Billing period", "Date", "Usage"),
+        headers=("Billing period", "Usage"),
         rows=rows,
-        right_aligned_columns=frozenset({2}),
+        right_aligned_columns=frozenset({1}),
     )
 
 
-def _format_daily_table(daily_usage: tuple[DailyUsage, ...]) -> list[str]:
+def _format_daily_table(
+    daily_usage: tuple[DailyUsage, ...],
+    report_date: date,
+) -> list[str]:
     rows: list[tuple[str, str]] = [
-        (value.usage_date.isoformat(), format_bytes(value.total_bytes))
+        (
+            "Today" if value.usage_date == report_date else value.usage_date.isoformat(),
+            format_bytes(value.total_bytes),
+        )
         for value in daily_usage
     ]
     return _format_table(
