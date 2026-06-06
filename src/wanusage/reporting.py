@@ -43,7 +43,7 @@ def format_bytes(byte_count: int) -> str:
 
 
 def format_date(value: date) -> str:
-    return f"{value.month}-{value.day}-{value.year}"
+    return f"{value.month}/{value.day}/{value.year}"
 
 
 def _format_billing_table(report: UsageReport) -> list[str]:
