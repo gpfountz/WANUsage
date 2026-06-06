@@ -21,6 +21,7 @@ class VnstatConfig:
     billing_cycle_day: int
     default_days: int
     daily_alert_gb: int
+    monthly_alert_gb: int
 
 
 @dataclass(frozen=True)
@@ -83,6 +84,12 @@ def load_config(config_path: Path) -> AppConfig:
                 "daily_alert_gb",
                 minimum=0,
                 maximum=999,
+            ),
+            monthly_alert_gb=_bounded_int(
+                vnstat_section,
+                "monthly_alert_gb",
+                minimum=0,
+                maximum=9999,
             ),
         ),
         email=EmailConfig(

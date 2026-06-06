@@ -9,6 +9,7 @@ from wanusage.billing import (
     calculate_current_billing_window,
     calculate_last_7_completed_days,
     calculate_previous_billing_window,
+    estimate_period_usage,
 )
 
 
@@ -95,3 +96,9 @@ def test_cycle_day_31_clamps_leap_year_february() -> None:
         DateWindow(start_date=date(2024, 1, 31), end_date=date(2024, 2, 29)),
         DateWindow(start_date=date(2024, 2, 29), end_date=date(2024, 3, 31)),
     )
+
+
+def test_estimate_period_usage_projects_from_elapsed_calendar_days() -> None:
+    window = DateWindow(start_date=date(2026, 5, 14), end_date=date(2026, 6, 14))
+
+    assert estimate_period_usage(13 * 1024**3, window, date(2026, 5, 26)) == 31 * 1024**3

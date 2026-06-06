@@ -25,6 +25,13 @@ def calculate_current_day(today: date) -> DateWindow:
     return DateWindow(start_date=today, end_date=today + timedelta(days=1))
 
 
+def estimate_period_usage(total_bytes: int, window: DateWindow, today: date) -> int:
+    period_days: int = (window.end_date - window.start_date).days
+    elapsed_days: int = min(max((today - window.start_date).days + 1, 1), period_days)
+    projected_bytes: int = total_bytes * period_days
+    return (projected_bytes + elapsed_days // 2) // elapsed_days
+
+
 def calculate_current_billing_window(today: date, cycle_day: int) -> DateWindow:
     current_month_boundary: date = _billing_boundary(today.year, today.month, cycle_day)
 

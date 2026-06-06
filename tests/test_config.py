@@ -23,6 +23,7 @@ interface_name = "eth0"
 billing_cycle_day = 14
 default_days = 7
 daily_alert_gb = 50
+monthly_alert_gb = 1000
 
 [email]
 smtp_host = "smtp.example.com"
@@ -46,6 +47,7 @@ to_address = "recipient@example.com"
     assert config.vnstat.billing_cycle_day == 14
     assert config.vnstat.default_days == 7
     assert config.vnstat.daily_alert_gb == 50
+    assert config.vnstat.monthly_alert_gb == 1000
     assert config.email.smtp_host == "smtp.example.com"
     assert config.email.from_address == "wan@example.com"
     assert config.email.to_address == "recipient@example.com"
@@ -76,6 +78,7 @@ interface_name = "eth0"
 billing_cycle_day = 14
 default_days = 61
 daily_alert_gb = 50
+monthly_alert_gb = 1000
 """,
         encoding="utf-8",
     )
@@ -100,11 +103,37 @@ interface_name = "eth0"
 billing_cycle_day = 14
 default_days = 7
 daily_alert_gb = 1000
+monthly_alert_gb = 1000
 """,
         encoding="utf-8",
     )
 
     with pytest.raises(ConfigError, match="daily_alert_gb"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_monthly_alert_gb_outside_range(tmp_path: Path) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_path.write_text(
+        """
+[router]
+host = "192.168.1.1"
+port = 22
+username = "root"
+ssh_key_path = "~/router-key"
+
+[vnstat]
+database_path = "/var/lib/vnstat/vnstat.db"
+interface_name = "eth0"
+billing_cycle_day = 14
+default_days = 7
+daily_alert_gb = 50
+monthly_alert_gb = 10000
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="monthly_alert_gb"):
         load_config(config_path)
 
 
@@ -128,6 +157,7 @@ interface_name = "eth0"
 billing_cycle_day = {billing_cycle_day}
 default_days = 7
 daily_alert_gb = 50
+monthly_alert_gb = 1000
 """,
         encoding="utf-8",
     )

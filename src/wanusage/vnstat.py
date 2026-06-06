@@ -10,6 +10,7 @@ from wanusage.billing import (
     calculate_billing_windows,
     calculate_completed_days,
     calculate_current_day,
+    estimate_period_usage,
 )
 from wanusage.config import VnstatConfig
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
@@ -38,6 +39,11 @@ class VnstatClient:
             _sqlite_command(self.config.database_path, "\n".join(queries))
         )
         daily_usage, billing_totals = _parse_report_results(output)
+        current_period_index: int = len(billing_windows) - 1
+        current_period_total: int = _required_billing_total(
+            billing_totals,
+            current_period_index,
+        )
 
         return UsageReport(
             generated_for=today,
@@ -51,6 +57,11 @@ class VnstatClient:
                     _required_billing_total(billing_totals, index),
                 )
                 for index, window in enumerate(billing_windows)
+            ),
+            estimated_current_period_bytes=estimate_period_usage(
+                current_period_total,
+                billing_windows[current_period_index],
+                today,
             ),
         )
 
