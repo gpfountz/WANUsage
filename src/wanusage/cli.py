@@ -10,9 +10,11 @@ from pathlib import Path
 from wanusage import __version__
 from wanusage.alerts import (
     ALERT_SUBJECT,
+    MONTHLY_ALERT_SUBJECT,
     AlertStateStore,
     alert_state_path_for_config,
     choose_alert,
+    should_send_monthly_alert,
 )
 from wanusage.config import ConfigError, load_config
 from wanusage.emailer import EmailError, EmailSender
@@ -117,6 +119,18 @@ def _handle_report(args: argparse.Namespace) -> None:
 
             if alert_decision.alert_date is not None:
                 alert_store.write_last_alert_date(alert_decision.alert_date)
+
+        if should_send_monthly_alert(
+            report.estimated_current_period_bytes,
+            app_config.vnstat.monthly_alert_gb,
+        ):
+            try:
+                EmailSender(app_config.email).send_report(
+                    subject=MONTHLY_ALERT_SUBJECT,
+                    body=formatted_report,
+                )
+            except EmailError as error:
+                _handle_error(error, debug=args.debug)
 
         if args.email:
             try:

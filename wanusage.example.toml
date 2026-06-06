@@ -10,6 +10,7 @@ interface_name = "eth0"
 billing_cycle_day = 1
 default_days = 7
 daily_alert_gb = 0
+monthly_alert_gb = 0
 
 [email]
 smtp_host = ""

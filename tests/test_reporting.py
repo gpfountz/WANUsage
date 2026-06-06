@@ -42,6 +42,7 @@ def test_format_report_includes_daily_and_period_totals() -> None:
                 total_bytes=1024**3,
             ),
         ),
+        estimated_current_period_bytes=3 * 1024**3,
     )
 
     formatted_report: str = format_report(report)
@@ -53,6 +54,10 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     )
     assert "Previous billing period (2026-04-14 - 2026-05-14): 1.00 TiB" in (
         formatted_report
+    )
+    assert "Estimated current billing period usage: 3.00 GiB" in formatted_report
+    assert formatted_report.index("Current billing period") < formatted_report.index(
+        "Estimated current billing period usage"
     )
     assert formatted_report.index("Previous billing period") < formatted_report.index(
         "Current billing period"
@@ -68,6 +73,7 @@ def test_format_report_uses_requested_day_count_in_heading() -> None:
         day_count=1,
         daily_usage=(),
         billing_periods=(),
+        estimated_current_period_bytes=0,
     )
 
     assert "Last 1 completed day and current day:" in format_report(report)
@@ -79,6 +85,7 @@ def test_format_report_uses_current_day_heading_for_zero_days() -> None:
         day_count=0,
         daily_usage=(),
         billing_periods=(),
+        estimated_current_period_bytes=0,
     )
 
     assert "Current day:" in format_report(report)
@@ -90,6 +97,7 @@ def test_format_report_omits_daily_section_for_negative_days() -> None:
         day_count=-1,
         daily_usage=(),
         billing_periods=(),
+        estimated_current_period_bytes=0,
     )
 
     assert "Current day:" not in format_report(report)

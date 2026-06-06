@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from wanusage.alerts import AlertStateStore, alert_state_path_for_config, choose_alert
+from wanusage.alerts import (
+    AlertStateStore,
+    alert_state_path_for_config,
+    choose_alert,
+    should_send_monthly_alert,
+)
 from wanusage.models import DailyUsage
 
 
@@ -65,3 +70,12 @@ def test_alert_state_path_lives_next_to_config() -> None:
 
     assert state_path.name == "wanusage-alert-state.txt"
     assert state_path.parent == config_path.resolve().parent
+
+
+def test_monthly_alert_is_disabled_when_threshold_is_zero() -> None:
+    assert should_send_monthly_alert(2000 * 1024**3, 0) is False
+
+
+def test_monthly_alert_requires_estimate_over_threshold() -> None:
+    assert should_send_monthly_alert(1000 * 1024**3, 1000) is False
+    assert should_send_monthly_alert(1000 * 1024**3 + 1, 1000) is True

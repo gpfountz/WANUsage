@@ -10,6 +10,10 @@ def format_report(report: UsageReport) -> str:
     ]
 
     lines.extend(_format_period(period) for period in report.billing_periods)
+    lines.append(
+        "Estimated current billing period usage: "
+        f"{format_bytes(report.estimated_current_period_bytes)}"
+    )
 
     if report.day_count >= 0:
         lines.extend(["", _daily_usage_heading(report.day_count)])

@@ -8,6 +8,7 @@ from wanusage.models import DailyUsage
 
 BYTES_PER_GIB: int = 1024**3
 ALERT_SUBJECT: str = "daily high usage alert"
+MONTHLY_ALERT_SUBJECT: str = "monthly high usage alert"
 
 
 @dataclass(frozen=True)
@@ -56,3 +57,9 @@ def choose_alert(
         return AlertDecision(should_send=False, alert_date=None)
 
     return AlertDecision(should_send=True, alert_date=max(triggering_dates))
+
+
+def should_send_monthly_alert(estimated_bytes: int, monthly_alert_gb: int) -> bool:
+    if monthly_alert_gb <= 0:
+        return False
+    return estimated_bytes > monthly_alert_gb * BYTES_PER_GIB

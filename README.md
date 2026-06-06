@@ -32,6 +32,10 @@ month, the billing boundary uses the last day of that month.
 The report SQL statements are batched into one remote `sqlite3` process and one
 SSH connection per run.
 
+The report projects current billing-period usage from usage so far, elapsed
+calendar days including today, and the total number of days in the billing
+period.
+
 ## Usage
 
 ```bash
@@ -62,6 +66,11 @@ process normally.
 configured GiB threshold. Alert state is stored next to the config file in
 `wanusage-alert-state.txt`, which records the most recent date that triggered an
 alert.
+
+`vnstat.monthly_alert_gb` accepts values from 0 to 9999. A value of `0` disables
+monthly alerts. When the estimated current billing-period usage exceeds a
+positive threshold, the app sends an email with subject
+`monthly high usage alert`.
 
 For local development without installing the console script globally:
 

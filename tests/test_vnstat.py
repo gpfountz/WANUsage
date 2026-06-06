@@ -25,6 +25,7 @@ def _config() -> VnstatConfig:
         billing_cycle_day=14,
         default_days=7,
         daily_alert_gb=50,
+        monthly_alert_gb=1000,
     )
 
 
@@ -55,6 +56,7 @@ def test_build_usage_report_executes_all_queries_in_one_remote_command() -> None
     assert report.billing_periods[0].name == "Previous billing period"
     assert report.billing_periods[1].total_bytes == 4096
     assert report.billing_periods[1].name == "Current billing period"
+    assert report.estimated_current_period_bytes == 9767
     assert len(command_runner.commands) == 1
 
     command: str = command_runner.commands[0]
