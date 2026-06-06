@@ -11,11 +11,11 @@ def format_report(report: UsageReport) -> str:
     ]
 
     if report.billing_periods:
-        lines.extend(["", "Billing period usage:"])
+        lines.append("")
         lines.extend(_format_billing_table(report))
 
     if report.day_count >= 0:
-        lines.extend(["", _daily_usage_heading(report.day_count)])
+        lines.append("")
         if report.daily_usage:
             lines.extend(_format_daily_table(report.daily_usage))
         else:
@@ -98,12 +98,6 @@ def _format_table(
 
     separator: str = "-+-".join("-" * width for width in column_widths)
     return [format_row(headers), separator, *(format_row(row) for row in rows)]
-
-
-def _daily_usage_heading(day_count: int) -> str:
-    if day_count == 0:
-        return "Current day:"
-    return f"Last {day_count} completed day{'s' if day_count != 1 else ''} and current day:"
 
 
 def sort_daily_usage(values: list[DailyUsage]) -> tuple[DailyUsage, ...]:
