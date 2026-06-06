@@ -59,7 +59,7 @@ def _format_billing_table(report: UsageReport) -> list[str]:
         )
     )
     return _format_table(
-        headers=("Period", "End date", "Usage"),
+        headers=("Billing period", "End date", "Usage"),
         rows=rows,
         right_aligned_columns=frozenset({2}),
     )
