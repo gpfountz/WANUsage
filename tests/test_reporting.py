@@ -51,7 +51,7 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     assert "Billing period usage:" not in formatted_report
     assert "Billing period    | Date       |    Usage" in formatted_report
     assert "Previous          | 2026-05-14 | 1.00 TiB" in formatted_report
-    assert "Current           | 2026-06-14 | 1.00 GiB" in formatted_report
+    assert "Current           | 2026-05-26 | 1.00 GiB" in formatted_report
     assert "Estimated current | 2026-06-14 | 3.00 GiB" in formatted_report
     assert "Date       |    Usage" in formatted_report
     assert "2026-05-24 | 1.00 KiB" in formatted_report

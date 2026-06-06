@@ -42,13 +42,18 @@ def format_bytes(byte_count: int) -> str:
 
 
 def _format_billing_table(report: UsageReport) -> list[str]:
+    current_period_index: int = len(report.billing_periods) - 1
     rows: list[tuple[str, str, str]] = [
         (
             period.name.removesuffix(" billing period"),
-            period.end_date.isoformat(),
+            (
+                report.generated_for
+                if index == current_period_index
+                else period.end_date
+            ).isoformat(),
             format_bytes(period.total_bytes),
         )
-        for period in report.billing_periods
+        for index, period in enumerate(report.billing_periods)
     ]
     current_period: UsagePeriod = report.billing_periods[-1]
     rows.append(
