@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
-from wanusage.reporting import format_bytes, format_report, sort_daily_usage
+from wanusage.reporting import format_bytes, format_date, format_report, sort_daily_usage
 
 
 def test_format_bytes() -> None:
@@ -18,6 +18,10 @@ def test_format_bytes() -> None:
 def test_format_bytes_rejects_negative_values() -> None:
     with pytest.raises(ValueError, match="byte_count cannot be negative"):
         format_bytes(-1)
+
+
+def test_format_date_uses_month_day_year_without_padding() -> None:
+    assert format_date(date(2026, 5, 6)) == "5-6-2026"
 
 
 def test_format_report_includes_daily_and_period_totals() -> None:
@@ -48,21 +52,21 @@ def test_format_report_includes_daily_and_period_totals() -> None:
 
     formatted_report: str = format_report(report)
 
-    assert "WAN usage report for 2026-05-26" in formatted_report
+    assert "WAN usage report for 5-26-2026" in formatted_report
     assert "Billing period usage:" not in formatted_report
     assert "Billing period |    Usage" in formatted_report
     assert "Previous       | 1.00 TiB" in formatted_report
     assert "Current        | 1.00 GiB" in formatted_report
     assert "Estimated      | 3.00 GiB" in formatted_report
-    assert "Date       |    Usage" in formatted_report
-    assert "2026-05-24 | 1.00 KiB" in formatted_report
-    assert "2026-05-25 | 2.00 KiB" in formatted_report
-    assert "Today      | 4.00 KiB" in formatted_report
+    assert "Date      |    Usage" in formatted_report
+    assert "5-24-2026 | 1.00 KiB" in formatted_report
+    assert "5-25-2026 | 2.00 KiB" in formatted_report
+    assert "Today     | 4.00 KiB" in formatted_report
     assert formatted_report.index("Previous") < formatted_report.index("Current")
     assert formatted_report.index("Current") < formatted_report.index("Estimated")
     assert "Last 7 completed days and current day" not in formatted_report
     assert formatted_report.index("Estimated") < formatted_report.index(
-        "\n\nDate       |"
+        "\n\nDate      |"
     )
 
 

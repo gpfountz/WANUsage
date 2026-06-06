@@ -18,7 +18,7 @@ from wanusage.alerts import (
 )
 from wanusage.config import ConfigError, load_config
 from wanusage.emailer import EmailError, EmailSender
-from wanusage.reporting import format_report
+from wanusage.reporting import format_date, format_report
 from wanusage.ssh import ParamikoCommandRunner, RemoteCommandError
 from wanusage.vnstat import VnstatClient
 
@@ -135,7 +135,7 @@ def _handle_report(args: argparse.Namespace) -> None:
         if args.email:
             try:
                 EmailSender(app_config.email).send_report(
-                    subject=f"WAN usage report for {report.generated_for.isoformat()}",
+                    subject=f"WAN usage report for {format_date(report.generated_for)}",
                     body=formatted_report,
                 )
             except EmailError as error:

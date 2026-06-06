@@ -8,7 +8,7 @@ from wanusage.models import DailyUsage, UsageReport
 
 def format_report(report: UsageReport) -> str:
     lines: list[str] = [
-        f"WAN usage report for {report.generated_for.isoformat()}",
+        f"WAN usage report for {format_date(report.generated_for)}",
     ]
 
     if report.billing_periods:
@@ -42,6 +42,10 @@ def format_bytes(byte_count: int) -> str:
     raise RuntimeError("unreachable byte formatting state")
 
 
+def format_date(value: date) -> str:
+    return f"{value.month}-{value.day}-{value.year}"
+
+
 def _format_billing_table(report: UsageReport) -> list[str]:
     rows: list[tuple[str, str]] = [
         (
@@ -69,7 +73,7 @@ def _format_daily_table(
 ) -> list[str]:
     rows: list[tuple[str, str]] = [
         (
-            "Today" if value.usage_date == report_date else value.usage_date.isoformat(),
+            "Today" if value.usage_date == report_date else format_date(value.usage_date),
             format_bytes(value.total_bytes),
         )
         for value in daily_usage
