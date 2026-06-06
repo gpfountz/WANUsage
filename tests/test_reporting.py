@@ -27,6 +27,7 @@ def test_format_date_uses_month_day_year_without_padding() -> None:
 def test_format_report_includes_daily_and_period_totals() -> None:
     report = UsageReport(
         generated_for=date(2026, 5, 26),
+        billing_cycle_day=14,
         day_count=7,
         daily_usage=(
             DailyUsage(usage_date=date(2026, 5, 24), total_bytes=1024),
@@ -53,6 +54,7 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     formatted_report: str = format_report(report)
 
     assert "WAN usage report for 5/26/2026" in formatted_report
+    assert formatted_report.splitlines()[1] == "Billing cycle day is 14"
     assert "Billing period usage:" not in formatted_report
     assert "Billing period |    Usage" in formatted_report
     assert "Previous       | 1.00 TiB" in formatted_report
@@ -73,6 +75,7 @@ def test_format_report_includes_daily_and_period_totals() -> None:
 def test_format_report_uses_requested_day_count_in_heading() -> None:
     report = UsageReport(
         generated_for=date(2026, 5, 26),
+        billing_cycle_day=14,
         day_count=1,
         daily_usage=(),
         billing_periods=(),
@@ -85,6 +88,7 @@ def test_format_report_uses_requested_day_count_in_heading() -> None:
 def test_format_report_uses_current_day_heading_for_zero_days() -> None:
     report = UsageReport(
         generated_for=date(2026, 5, 26),
+        billing_cycle_day=14,
         day_count=0,
         daily_usage=(),
         billing_periods=(),
@@ -97,6 +101,7 @@ def test_format_report_uses_current_day_heading_for_zero_days() -> None:
 def test_format_report_omits_daily_section_for_negative_days() -> None:
     report = UsageReport(
         generated_for=date(2026, 5, 26),
+        billing_cycle_day=14,
         day_count=-1,
         daily_usage=(),
         billing_periods=(),
