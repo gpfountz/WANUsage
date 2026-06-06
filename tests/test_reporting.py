@@ -48,7 +48,7 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     formatted_report: str = format_report(report)
 
     assert "WAN usage report for 2026-05-26" in formatted_report
-    assert "Billing period usage:" in formatted_report
+    assert "Billing period usage:" not in formatted_report
     assert "Period            | End date   |    Usage" in formatted_report
     assert "Previous          | 2026-05-14 | 1.00 TiB" in formatted_report
     assert "Current           | 2026-06-14 | 1.00 GiB" in formatted_report
@@ -58,9 +58,8 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     assert "2026-05-25 | 2.00 KiB" in formatted_report
     assert formatted_report.index("Previous") < formatted_report.index("Current")
     assert formatted_report.index("Current") < formatted_report.index("Estimated current")
-    assert formatted_report.index("Estimated current") < formatted_report.index(
-        "Last 7 completed days and current day"
-    )
+    assert "Last 7 completed days and current day" not in formatted_report
+    assert formatted_report.index("Estimated current") < formatted_report.index("Date")
 
 
 def test_format_report_uses_requested_day_count_in_heading() -> None:
@@ -72,7 +71,7 @@ def test_format_report_uses_requested_day_count_in_heading() -> None:
         estimated_current_period_bytes=0,
     )
 
-    assert "Last 1 completed day and current day:" in format_report(report)
+    assert "completed day" not in format_report(report)
 
 
 def test_format_report_uses_current_day_heading_for_zero_days() -> None:
@@ -84,7 +83,7 @@ def test_format_report_uses_current_day_heading_for_zero_days() -> None:
         estimated_current_period_bytes=0,
     )
 
-    assert "Current day:" in format_report(report)
+    assert "Current day:" not in format_report(report)
 
 
 def test_format_report_omits_daily_section_for_negative_days() -> None:
