@@ -52,6 +52,7 @@ def test_build_usage_report_executes_all_queries_in_one_remote_command() -> None
     report = client.build_usage_report(date(2026, 5, 26), day_count=7)
 
     assert [value.total_bytes for value in report.daily_usage] == [1024, 512]
+    assert report.billing_cycle_day == 14
     assert report.billing_periods[0].total_bytes == 8192
     assert report.billing_periods[0].name == "Previous billing period"
     assert report.billing_periods[1].total_bytes == 4096

@@ -9,6 +9,7 @@ from wanusage.models import DailyUsage, UsageReport
 def format_report(report: UsageReport) -> str:
     lines: list[str] = [
         f"WAN usage report for {format_date(report.generated_for)}",
+        f"Billing cycle day is {report.billing_cycle_day}",
     ]
 
     if report.billing_periods:

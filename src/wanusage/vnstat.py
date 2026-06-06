@@ -47,6 +47,7 @@ class VnstatClient:
 
         return UsageReport(
             generated_for=today,
+            billing_cycle_day=self.config.billing_cycle_day,
             day_count=day_count,
             daily_usage=sort_daily_usage(daily_usage),
             billing_periods=tuple(
