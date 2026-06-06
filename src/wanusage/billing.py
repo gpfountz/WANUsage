@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -24,49 +25,54 @@ def calculate_current_day(today: date) -> DateWindow:
     return DateWindow(start_date=today, end_date=today + timedelta(days=1))
 
 
-def calculate_current_billing_window(today: date, cycle_day: int = 14) -> DateWindow:
-    if today.day >= cycle_day:
-        start_date: date = date(today.year, today.month, cycle_day)
-        end_date: date = _add_month(start_date)
+def calculate_current_billing_window(today: date, cycle_day: int) -> DateWindow:
+    current_month_boundary: date = _billing_boundary(today.year, today.month, cycle_day)
+
+    if today >= current_month_boundary:
+        start_date: date = current_month_boundary
+        next_year, next_month = _shift_month(today.year, today.month, 1)
+        end_date: date = _billing_boundary(next_year, next_month, cycle_day)
     else:
-        end_date = date(today.year, today.month, cycle_day)
-        start_date = _subtract_month(end_date)
+        end_date = current_month_boundary
+        previous_year, previous_month = _shift_month(today.year, today.month, -1)
+        start_date = _billing_boundary(previous_year, previous_month, cycle_day)
 
     return DateWindow(start_date=start_date, end_date=end_date)
 
 
-def calculate_previous_billing_window(today: date, cycle_day: int = 14) -> DateWindow:
+def calculate_previous_billing_window(today: date, cycle_day: int) -> DateWindow:
     current_window: DateWindow = calculate_current_billing_window(today, cycle_day)
-    start_date: date = _subtract_month(current_window.start_date)
+    previous_year, previous_month = _shift_month(
+        current_window.start_date.year,
+        current_window.start_date.month,
+        -1,
+    )
+    start_date: date = _billing_boundary(previous_year, previous_month, cycle_day)
     return DateWindow(start_date=start_date, end_date=current_window.start_date)
 
 
 def calculate_billing_windows(
     today: date,
     month_count: int,
-    cycle_day: int = 14,
+    cycle_day: int,
 ) -> tuple[DateWindow, ...]:
     current_window: DateWindow = calculate_current_billing_window(today, cycle_day)
-    windows: list[DateWindow] = []
-    end_date: date = current_window.end_date
+    windows: list[DateWindow] = [current_window]
 
-    for _index in range(month_count):
-        start_date: date = _subtract_month(end_date)
+    while len(windows) < month_count:
+        end_date: date = windows[-1].start_date
+        previous_year, previous_month = _shift_month(end_date.year, end_date.month, -1)
+        start_date: date = _billing_boundary(previous_year, previous_month, cycle_day)
         windows.append(DateWindow(start_date=start_date, end_date=end_date))
-        end_date = start_date
 
     return tuple(reversed(windows))
 
 
-def _add_month(value: date) -> date:
-    if value.month == 12:
-        return date(value.year + 1, 1, value.day)
-
-    return date(value.year, value.month + 1, value.day)
+def _billing_boundary(year: int, month: int, cycle_day: int) -> date:
+    last_day: int = monthrange(year, month)[1]
+    return date(year, month, min(cycle_day, last_day))
 
 
-def _subtract_month(value: date) -> date:
-    if value.month == 1:
-        return date(value.year - 1, 12, value.day)
-
-    return date(value.year, value.month - 1, value.day)
+def _shift_month(year: int, month: int, offset: int) -> tuple[int, int]:
+    month_index: int = year * 12 + month - 1 + offset
+    return divmod(month_index, 12)[0], divmod(month_index, 12)[1] + 1

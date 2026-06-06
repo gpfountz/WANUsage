@@ -20,6 +20,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+billing_cycle_day = 14
 default_days = 7
 daily_alert_gb = 50
 
@@ -42,6 +43,7 @@ to_address = "recipient@example.com"
     assert config.router.ssh_key_path == Path("~/router-key").expanduser()
     assert config.vnstat.database_path == "/var/lib/vnstat/vnstat.db"
     assert config.vnstat.interface_name == "eth0"
+    assert config.vnstat.billing_cycle_day == 14
     assert config.vnstat.default_days == 7
     assert config.vnstat.daily_alert_gb == 50
     assert config.email.smtp_host == "smtp.example.com"
@@ -71,6 +73,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+billing_cycle_day = 14
 default_days = 61
 daily_alert_gb = 50
 """,
@@ -94,6 +97,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+billing_cycle_day = 14
 default_days = 7
 daily_alert_gb = 1000
 """,
@@ -101,4 +105,32 @@ daily_alert_gb = 1000
     )
 
     with pytest.raises(ConfigError, match="daily_alert_gb"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize("billing_cycle_day", [0, 32])
+def test_load_config_rejects_billing_cycle_day_outside_range(
+    tmp_path: Path,
+    billing_cycle_day: int,
+) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_path.write_text(
+        f"""
+[router]
+host = "192.168.1.1"
+port = 22
+username = "root"
+ssh_key_path = "~/router-key"
+
+[vnstat]
+database_path = "/var/lib/vnstat/vnstat.db"
+interface_name = "eth0"
+billing_cycle_day = {billing_cycle_day}
+default_days = 7
+daily_alert_gb = 50
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="billing_cycle_day"):
         load_config(config_path)

@@ -18,6 +18,7 @@ class RouterConfig:
 class VnstatConfig:
     database_path: str
     interface_name: str
+    billing_cycle_day: int
     default_days: int
     daily_alert_gb: int
 
@@ -65,6 +66,12 @@ def load_config(config_path: Path) -> AppConfig:
         vnstat=VnstatConfig(
             database_path=_required_str(vnstat_section, "database_path"),
             interface_name=_required_str(vnstat_section, "interface_name"),
+            billing_cycle_day=_bounded_int(
+                vnstat_section,
+                "billing_cycle_day",
+                minimum=1,
+                maximum=31,
+            ),
             default_days=_bounded_int(
                 vnstat_section,
                 "default_days",
