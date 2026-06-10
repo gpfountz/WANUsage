@@ -44,6 +44,7 @@ class FakeSshClient:
         self.closed: bool = False
         self.loaded_host_keys: bool = False
         self.host_key_policy: object | None = None
+        self.connect_kwargs: dict[str, object] = {}
         FakeSshClient.instances.append(self)
 
     def load_system_host_keys(self) -> None:
@@ -52,7 +53,8 @@ class FakeSshClient:
     def set_missing_host_key_policy(self, policy: object) -> None:
         self.host_key_policy = policy
 
-    def connect(self, **_kwargs: object) -> None:
+    def connect(self, **kwargs: object) -> None:
+        self.connect_kwargs = kwargs
         if self.connect_error is not None:
             raise self.connect_error
 
@@ -153,3 +155,16 @@ def test_run_drains_stdout_and_stderr_before_waiting_for_exit_status(
 
     assert output == "x" * 100_000
     assert FakeSshClient.instances[0].closed is True
+
+
+def test_run_uses_only_the_configured_ssh_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("wanusage.ssh.paramiko.SSHClient", FakeSshClient)
+
+    _runner().run("true")
+
+    connect_kwargs: dict[str, object] = FakeSshClient.instances[0].connect_kwargs
+    assert connect_kwargs["key_filename"] == "/tmp/router-key"
+    assert connect_kwargs["allow_agent"] is False
+    assert connect_kwargs["look_for_keys"] is False

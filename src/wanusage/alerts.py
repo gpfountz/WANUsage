@@ -45,7 +45,14 @@ class AlertStateStore:
         if not raw_value:
             return None
 
-        return date.fromisoformat(raw_value)
+        try:
+            return date.fromisoformat(raw_value)
+        except ValueError:
+            invalid_path: Path = self.state_path.with_suffix(
+                f"{self.state_path.suffix}.invalid"
+            )
+            os.replace(self.state_path, invalid_path)
+            return None
 
     def write_last_alert_date(self, alert_date: date) -> None:
         temporary_path: Path | None = None
@@ -69,11 +76,13 @@ class AlertStateStore:
 
 
 def alert_state_path_for_config(config_path: Path) -> Path:
-    return config_path.resolve().with_name("wanusage-alert-state.txt")
+    resolved_path: Path = config_path.resolve()
+    return resolved_path.with_name(f"{resolved_path.stem}-alert-state.txt")
 
 
 def monthly_alert_state_path_for_config(config_path: Path) -> Path:
-    return config_path.resolve().with_name("wanusage-monthly-alert-state.txt")
+    resolved_path: Path = config_path.resolve()
+    return resolved_path.with_name(f"{resolved_path.stem}-monthly-alert-state.txt")
 
 
 def choose_alert(

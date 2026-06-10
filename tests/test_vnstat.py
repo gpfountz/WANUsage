@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 from dataclasses import dataclass, field
 from datetime import date
+from zoneinfo import ZoneInfo
 
 from wanusage.config import VnstatConfig
 from wanusage.vnstat import VnstatClient
@@ -22,6 +23,7 @@ def _config(*, daily_alert_gb: int = 50) -> VnstatConfig:
     return VnstatConfig(
         database_path="/var/lib/vnstat/vnstat.db",
         interface_name="eth0",
+        reporting_timezone=ZoneInfo("America/New_York"),
         billing_cycle_day=14,
         default_days=7,
         daily_alert_gb=daily_alert_gb,

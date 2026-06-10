@@ -39,6 +39,8 @@ class ParamikoCommandRunner:
                 port=self.router_config.port,
                 username=self.router_config.username,
                 key_filename=str(self.router_config.ssh_key_path),
+                allow_agent=False,
+                look_for_keys=False,
                 timeout=self.timeout_seconds,
                 banner_timeout=self.timeout_seconds,
                 auth_timeout=self.timeout_seconds,
