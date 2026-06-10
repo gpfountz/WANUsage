@@ -69,12 +69,15 @@ daily alerts. A positive value sends one alert email per run with subject
 configured GiB threshold. Alert state is stored next to the config file in
 `wanusage-alert-state.txt`, which records the most recent date that triggered
 an alert. Daily alert detection checks all available usage from the previous
-60 days plus today, independently of the `--days` report setting.
+60 days plus today, independently of the `--days` report setting. State updates
+are locked and written atomically to prevent duplicate alerts from overlapping
+cron runs.
 
 `vnstat.monthly_alert_gb` accepts values from 0 to 9999. A value of `0` disables
 monthly alerts. When the estimated current billing-period usage exceeds a
-positive threshold, the app sends an email with subject
-`monthly high usage alert`.
+positive threshold, the app sends one email per billing period with subject
+`monthly high usage alert`. The alerted billing period is stored in
+`wanusage-monthly-alert-state.txt` next to the config file.
 
 For local development without installing the console script globally:
 
