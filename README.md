@@ -63,11 +63,12 @@ and hostname are validated using the operating system's trusted certificate auth
 `--quiet` suppresses stdout output only. Email reports and alert emails still
 process normally.
 
-`vnstat.daily_alert_gb` sends one alert email per run with subject
+`vnstat.daily_alert_gb` accepts values from 0 to 999. A value of `0` disables
+daily alerts. A positive value sends one alert email per run with subject
 `daily high usage alert` when an unalerted daily usage value exceeds the
 configured GiB threshold. Alert state is stored next to the config file in
-`wanusage-alert-state.txt`, which records the most recent date that triggered an
-alert.
+`wanusage-alert-state.txt`, which records the most recent date that triggered
+an alert.
 
 `vnstat.monthly_alert_gb` accepts values from 0 to 9999. A value of `0` disables
 monthly alerts. When the estimated current billing-period usage exceeds a

@@ -51,6 +51,17 @@ def test_choose_alert_uses_strictly_greater_than_threshold() -> None:
     assert decision.should_send is False
 
 
+def test_choose_alert_is_disabled_when_threshold_is_zero() -> None:
+    decision = choose_alert(
+        (DailyUsage(usage_date=date(2026, 5, 24), total_bytes=100 * 1024**3),),
+        daily_alert_gb=0,
+        last_alert_date=None,
+    )
+
+    assert decision.should_send is False
+    assert decision.alert_date is None
+
+
 def test_alert_state_store_reads_and_writes_single_date(tmp_path: Path) -> None:
     state_path: Path = tmp_path / "wanusage-alert-state.txt"
     store = AlertStateStore(state_path)
