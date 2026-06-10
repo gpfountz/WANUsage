@@ -68,7 +68,8 @@ daily alerts. A positive value sends one alert email per run with subject
 `daily high usage alert` when an unalerted daily usage value exceeds the
 configured GiB threshold. Alert state is stored next to the config file in
 `wanusage-alert-state.txt`, which records the most recent date that triggered
-an alert.
+an alert. Daily alert detection checks all available usage from the previous
+60 days plus today, independently of the `--days` report setting.
 
 `vnstat.monthly_alert_gb` accepts values from 0 to 9999. A value of `0` disables
 monthly alerts. When the estimated current billing-period usage exceeds a

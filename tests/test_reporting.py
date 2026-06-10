@@ -34,6 +34,7 @@ def test_format_report_includes_daily_and_period_totals() -> None:
             DailyUsage(usage_date=date(2026, 5, 25), total_bytes=2048),
             DailyUsage(usage_date=date(2026, 5, 26), total_bytes=4096),
         ),
+        daily_alert_usage=(),
         billing_periods=(
             UsagePeriod(
                 name="Previous billing period",
@@ -78,6 +79,7 @@ def test_format_report_uses_requested_day_count_in_heading() -> None:
         billing_cycle_day=14,
         day_count=1,
         daily_usage=(),
+        daily_alert_usage=(),
         billing_periods=(),
         estimated_current_period_bytes=0,
     )
@@ -91,6 +93,7 @@ def test_format_report_uses_current_day_heading_for_zero_days() -> None:
         billing_cycle_day=14,
         day_count=0,
         daily_usage=(),
+        daily_alert_usage=(),
         billing_periods=(),
         estimated_current_period_bytes=0,
     )
@@ -104,6 +107,7 @@ def test_format_report_omits_daily_section_for_negative_days() -> None:
         billing_cycle_day=14,
         day_count=-1,
         daily_usage=(),
+        daily_alert_usage=(),
         billing_periods=(),
         estimated_current_period_bytes=0,
     )

@@ -3,19 +3,19 @@ from __future__ import annotations
 import base64
 import shlex
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 from wanusage.billing import (
     DateWindow,
     calculate_billing_windows,
-    calculate_completed_days,
-    calculate_current_day,
     estimate_period_usage,
 )
 from wanusage.config import VnstatConfig
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
 from wanusage.reporting import sort_daily_usage
 from wanusage.ssh import RemoteCommandRunner
+
+MAX_DAILY_HISTORY_DAYS: int = 60
 
 
 @dataclass(frozen=True)
@@ -39,6 +39,7 @@ class VnstatClient:
             _sqlite_command(self.config.database_path, "\n".join(queries))
         )
         daily_usage, billing_totals = _parse_report_results(output)
+        sorted_daily_usage: tuple[DailyUsage, ...] = sort_daily_usage(daily_usage)
         current_period_index: int = len(billing_windows) - 1
         current_period_total: int = _required_billing_total(
             billing_totals,
@@ -49,7 +50,10 @@ class VnstatClient:
             generated_for=today,
             billing_cycle_day=self.config.billing_cycle_day,
             day_count=day_count,
-            daily_usage=sort_daily_usage(daily_usage),
+            daily_usage=_select_report_daily_usage(sorted_daily_usage, today, day_count),
+            daily_alert_usage=(
+                sorted_daily_usage if self.config.daily_alert_gb > 0 else ()
+            ),
             billing_periods=tuple(
                 _build_usage_period(
                     window,
@@ -73,17 +77,17 @@ class VnstatClient:
         billing_windows: tuple[DateWindow, ...],
     ) -> list[str]:
         queries: list[str] = []
-        if day_count > 0:
+        daily_history_days: int = _daily_history_days(
+            day_count,
+            daily_alerts_enabled=self.config.daily_alert_gb > 0,
+        )
+        if daily_history_days >= 0:
             queries.append(
                 _daily_usage_query(
-                    calculate_completed_days(today, day_count),
-                    self.config.interface_name,
-                )
-            )
-        if day_count >= 0:
-            queries.append(
-                _daily_usage_query(
-                    calculate_current_day(today),
+                    DateWindow(
+                        start_date=today - timedelta(days=daily_history_days),
+                        end_date=today + timedelta(days=1),
+                    ),
                     self.config.interface_name,
                 )
             )
@@ -92,6 +96,28 @@ class VnstatClient:
             for index, window in enumerate(billing_windows)
         )
         return queries
+
+
+def _daily_history_days(day_count: int, *, daily_alerts_enabled: bool) -> int:
+    report_history_days: int = day_count if day_count >= 0 else -1
+    alert_history_days: int = MAX_DAILY_HISTORY_DAYS if daily_alerts_enabled else -1
+    return max(report_history_days, alert_history_days)
+
+
+def _select_report_daily_usage(
+    daily_usage: tuple[DailyUsage, ...],
+    today: date,
+    day_count: int,
+) -> tuple[DailyUsage, ...]:
+    if day_count < 0:
+        return ()
+
+    first_report_date: date = today - timedelta(days=day_count)
+    return tuple(
+        value
+        for value in daily_usage
+        if first_report_date <= value.usage_date <= today
+    )
 
 
 def _sqlite_command(database_path: str, query: str) -> str:
