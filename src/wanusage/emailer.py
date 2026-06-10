@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import smtplib
+import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
 
@@ -32,7 +33,7 @@ class EmailSender:
                 timeout=self.timeout_seconds,
             ) as smtp:
                 if self.config.use_tls:
-                    smtp.starttls()
+                    smtp.starttls(context=ssl.create_default_context())
                 if self.config.username:
                     smtp.login(self.config.username, self.config.password)
                 smtp.send_message(message)
@@ -55,3 +56,5 @@ class EmailSender:
         if missing_values:
             joined_values: str = ", ".join(missing_values)
             raise EmailError(f"Missing email config value(s): {joined_values}")
+        if self.config.username and not self.config.use_tls:
+            raise EmailError("Authenticated SMTP requires email.use_tls = true")

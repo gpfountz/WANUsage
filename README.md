@@ -57,6 +57,8 @@ usage section. The billing section always shows the previous billing month and
 the current billing month.
 
 `--email` sends the report to `email.to_address` from `wanusage.toml`.
+Authenticated SMTP requires `email.use_tls = true`; the SMTP server certificate
+and hostname are validated using the operating system's trusted certificate authorities.
 
 `--quiet` suppresses stdout output only. Email reports and alert emails still
 process normally.

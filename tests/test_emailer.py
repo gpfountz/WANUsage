@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ssl
 from collections.abc import Iterator
 from email.message import EmailMessage
 
@@ -17,6 +18,7 @@ class FakeSmtp:
         self.port: int = port
         self.timeout: int = timeout
         self.started_tls: bool = False
+        self.tls_context: ssl.SSLContext | None = None
         self.login_args: tuple[str, str] | None = None
         self.sent_message: EmailMessage | None = None
         FakeSmtp.instances.append(self)
@@ -27,8 +29,9 @@ class FakeSmtp:
     def __exit__(self, *_args: object) -> None:
         return None
 
-    def starttls(self) -> None:
+    def starttls(self, *, context: ssl.SSLContext) -> None:
         self.started_tls = True
+        self.tls_context = context
 
     def login(self, username: str, password: str) -> None:
         self.login_args = (username, password)
@@ -67,6 +70,9 @@ def test_send_report_uses_smtp_config(monkeypatch: pytest.MonkeyPatch) -> None:
     assert instance.host == "smtp.example.com"
     assert instance.port == 587
     assert instance.started_tls is True
+    assert instance.tls_context is not None
+    assert instance.tls_context.verify_mode == ssl.CERT_REQUIRED
+    assert instance.tls_context.check_hostname is True
     assert instance.login_args == ("mailer", "secret")
     assert instance.sent_message is not None
     assert instance.sent_message["From"] == "wan@example.com"
@@ -117,6 +123,26 @@ def test_send_report_without_username_skips_login(monkeypatch: pytest.MonkeyPatc
     instance: FakeSmtp = FakeSmtp.instances[0]
     assert instance.started_tls is False
     assert instance.login_args is None
+
+
+def test_send_report_rejects_authenticated_smtp_without_tls() -> None:
+    sender = EmailSender(
+        EmailConfig(
+            smtp_host="smtp.example.com",
+            smtp_port=25,
+            username="mailer",
+            password="secret",
+            from_address="wan@example.com",
+            to_address="recipient@example.com",
+            use_tls=False,
+        )
+    )
+
+    with pytest.raises(EmailError, match="Authenticated SMTP requires"):
+        sender.send_report(
+            subject="WAN report",
+            body="Report body",
+        )
 
 
 def test_send_report_rejects_missing_to_address() -> None:
