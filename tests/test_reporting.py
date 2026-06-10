@@ -5,7 +5,13 @@ from datetime import date
 import pytest
 
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
-from wanusage.reporting import format_bytes, format_date, format_report, sort_daily_usage
+from wanusage.reporting import (
+    format_bytes,
+    format_daily_alert_report,
+    format_date,
+    format_report,
+    sort_daily_usage,
+)
 
 
 def test_format_bytes() -> None:
@@ -114,6 +120,29 @@ def test_format_report_omits_daily_section_for_negative_days() -> None:
 
     assert "Current day:" not in format_report(report)
     assert "completed day" not in format_report(report)
+
+
+def test_format_daily_alert_report_includes_hidden_triggering_day() -> None:
+    triggering_usage = DailyUsage(
+        usage_date=date(2026, 5, 24),
+        total_bytes=20 * 1024**3,
+    )
+    report = UsageReport(
+        generated_for=date(2026, 5, 26),
+        billing_cycle_day=14,
+        day_count=-1,
+        daily_usage=(),
+        daily_alert_usage=(triggering_usage,),
+        billing_periods=(),
+        estimated_current_period_bytes=0,
+    )
+
+    formatted_report: str = format_daily_alert_report(
+        report,
+        triggering_usage.usage_date,
+    )
+
+    assert "5/24/2026 | 20.00 GiB" in formatted_report
 
 
 def test_sort_daily_usage_orders_by_date() -> None:

@@ -79,6 +79,18 @@ def test_alert_state_store_reads_and_writes_single_date(tmp_path: Path) -> None:
     assert store.read_last_alert_date() == date(2026, 5, 26)
 
 
+def test_alert_state_store_quarantines_invalid_state(tmp_path: Path) -> None:
+    state_path: Path = tmp_path / "wanusage-alert-state.txt"
+    state_path.write_text("invalid-date\n", encoding="utf-8")
+    store = AlertStateStore(state_path)
+
+    assert store.read_last_alert_date() is None
+    assert not state_path.exists()
+    assert state_path.with_suffix(".txt.invalid").read_text(
+        encoding="utf-8"
+    ) == "invalid-date\n"
+
+
 def test_alert_state_store_holds_an_exclusive_process_lock(tmp_path: Path) -> None:
     state_path: Path = tmp_path / "wanusage-alert-state.txt"
     store = AlertStateStore(state_path)
@@ -109,6 +121,20 @@ def test_monthly_alert_state_path_lives_next_to_config() -> None:
 
     assert state_path.name == "wanusage-monthly-alert-state.txt"
     assert state_path.parent == config_path.resolve().parent
+
+
+def test_custom_configs_use_independent_alert_state_paths() -> None:
+    first_config = Path("/tmp/example/router-a.toml")
+    second_config = Path("/tmp/example/router-b.toml")
+
+    assert alert_state_path_for_config(first_config).name == "router-a-alert-state.txt"
+    assert alert_state_path_for_config(second_config).name == "router-b-alert-state.txt"
+    assert monthly_alert_state_path_for_config(first_config).name == (
+        "router-a-monthly-alert-state.txt"
+    )
+    assert monthly_alert_state_path_for_config(second_config).name == (
+        "router-b-monthly-alert-state.txt"
+    )
 
 
 def test_monthly_alert_is_disabled_when_threshold_is_zero() -> None:

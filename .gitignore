@@ -13,8 +13,5 @@ src/.DS_Store
 wanusage.toml
 *.local.toml
 .env
-wanusage-alert-state.txt
-wanusage-alert-state.txt.lock
-wanusage-monthly-alert-state.txt
-wanusage-monthly-alert-state.txt.lock
+*-alert-state.txt*
 .DS_Store

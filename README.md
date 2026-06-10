@@ -11,13 +11,16 @@ The app is designed to run on macOS or Linux, connect to the router over SSH, qu
 
 ## Local Configuration
 
-Copy the example config and edit it for the machine running the command:
+Install the example with owner-only permissions and edit it for the machine
+running the command:
 
 ```bash
-cp wanusage.example.toml wanusage.toml
+install -m 600 wanusage.example.toml wanusage.toml
 ```
 
 `wanusage.toml` is ignored by Git because it contains authentication details.
+WANUsage rejects config files that are readable or writable by group or other
+users.
 
 The SSH key path may point at the private key used with an OpenSSH certificate.
 The router host key must already be trusted in the running user's `known_hosts`
@@ -25,6 +28,10 @@ file; the app rejects unknown host keys.
 
 Set `vnstat.interface_name` to the interface name stored in vnStat's `interface`
 table for the WAN interface.
+
+Set `vnstat.reporting_timezone` to the IANA timezone used by OPNsense, such as
+`America/New_York`. Report dates, billing periods, and alerts use this timezone
+instead of the local timezone of the macOS or Linux machine running WANUsage.
 
 Set `vnstat.billing_cycle_day` from 1 to 31. When that day does not exist in a
 month, the billing boundary uses the last day of that month.
@@ -67,8 +74,8 @@ process normally.
 daily alerts. A positive value sends one alert email per run with subject
 `daily high usage alert` when an unalerted daily usage value exceeds the
 configured GiB threshold. Alert state is stored next to the config file in
-`wanusage-alert-state.txt`, which records the most recent date that triggered
-an alert. Daily alert detection checks all available usage from the previous
+`<config-name>-alert-state.txt`, which records the most recent date that
+triggered an alert. Daily alert detection checks all available usage from the previous
 60 days plus today, independently of the `--days` report setting. State updates
 are locked and written atomically to prevent duplicate alerts from overlapping
 cron runs.
@@ -77,7 +84,7 @@ cron runs.
 monthly alerts. When the estimated current billing-period usage exceeds a
 positive threshold, the app sends one email per billing period with subject
 `monthly high usage alert`. The alerted billing period is stored in
-`wanusage-monthly-alert-state.txt` next to the config file.
+`<config-name>-monthly-alert-state.txt` next to the config file.
 
 For local development without installing the console script globally:
 
@@ -98,6 +105,8 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
 pytest
+ruff check .
+mypy src tests
 ```
 
 ## Current Status

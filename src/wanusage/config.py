@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from stat import S_IMODE
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 @dataclass(frozen=True)
@@ -18,6 +20,7 @@ class RouterConfig:
 class VnstatConfig:
     database_path: str
     interface_name: str
+    reporting_timezone: ZoneInfo
     billing_cycle_day: int
     default_days: int
     daily_alert_gb: int
@@ -29,7 +32,7 @@ class EmailConfig:
     smtp_host: str
     smtp_port: int
     username: str
-    password: str
+    password: str = field(repr=False)
     from_address: str
     to_address: str
     use_tls: bool
@@ -49,6 +52,10 @@ class ConfigError(ValueError):
 def load_config(config_path: Path) -> AppConfig:
     if not config_path.exists():
         raise ConfigError(f"Config file does not exist: {config_path}")
+    if S_IMODE(config_path.stat().st_mode) & 0o077:
+        raise ConfigError(
+            f"Config file permissions must not allow group or other access: {config_path}"
+        )
 
     with config_path.open("rb") as config_file:
         raw_config: dict[str, Any] = tomllib.load(config_file)
@@ -67,6 +74,10 @@ def load_config(config_path: Path) -> AppConfig:
         vnstat=VnstatConfig(
             database_path=_required_str(vnstat_section, "database_path"),
             interface_name=_required_str(vnstat_section, "interface_name"),
+            reporting_timezone=_required_timezone(
+                vnstat_section,
+                "reporting_timezone",
+            ),
             billing_cycle_day=_bounded_int(
                 vnstat_section,
                 "billing_cycle_day",
@@ -178,3 +189,13 @@ def _optional_bool(section: dict[str, Any], key: str, *, default: bool) -> bool:
     if not isinstance(value, bool):
         raise ConfigError(f"Config value must be a boolean: {key}")
     return value
+
+
+def _required_timezone(section: dict[str, Any], key: str) -> ZoneInfo:
+    timezone_name: str = _required_str(section, key)
+    try:
+        return ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError as error:
+        raise ConfigError(
+            f"Unknown IANA timezone for config value {key}: {timezone_name}"
+        ) from error

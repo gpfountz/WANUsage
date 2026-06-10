@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import date
 
 from wanusage.models import DailyUsage, UsageReport
@@ -24,6 +25,33 @@ def format_report(report: UsageReport) -> str:
             lines.append("  No daily usage records found.")
 
     return "\n".join(lines)
+
+
+def format_daily_alert_report(report: UsageReport, alert_date: date) -> str:
+    alert_usage: DailyUsage | None = next(
+        (
+            value
+            for value in report.daily_alert_usage
+            if value.usage_date == alert_date
+        ),
+        None,
+    )
+    if alert_usage is None:
+        return format_report(report)
+
+    daily_usage_by_date: dict[date, DailyUsage] = {
+        value.usage_date: value for value in report.daily_usage
+    }
+    daily_usage_by_date[alert_date] = alert_usage
+    alert_report: UsageReport = replace(
+        report,
+        day_count=max(report.day_count, 0),
+        daily_usage=tuple(
+            daily_usage_by_date[usage_date]
+            for usage_date in sorted(daily_usage_by_date)
+        ),
+    )
+    return format_report(alert_report)
 
 
 def format_bytes(byte_count: int) -> str:

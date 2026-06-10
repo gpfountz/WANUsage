@@ -4,7 +4,7 @@ import argparse
 import sys
 import traceback
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from wanusage import __version__
@@ -19,7 +19,7 @@ from wanusage.alerts import (
 )
 from wanusage.config import ConfigError, load_config
 from wanusage.emailer import EmailError, EmailSender
-from wanusage.reporting import format_date, format_report
+from wanusage.reporting import format_daily_alert_report, format_date, format_report
 from wanusage.ssh import ParamikoCommandRunner, RemoteCommandError
 from wanusage.vnstat import VnstatClient
 
@@ -97,8 +97,9 @@ def _handle_report(args: argparse.Namespace) -> None:
         app_config = load_config(config_path)
         command_runner = ParamikoCommandRunner(app_config.router)
         vnstat_client = VnstatClient(command_runner=command_runner, config=app_config.vnstat)
+        report_date: date = datetime.now(app_config.vnstat.reporting_timezone).date()
         report = vnstat_client.build_usage_report(
-            date.today(),
+            report_date,
             day_count=args.days if args.days is not None else app_config.vnstat.default_days,
         )
         formatted_report: str = format_report(report)
@@ -111,17 +112,20 @@ def _handle_report(args: argparse.Namespace) -> None:
                     last_alert_date=alert_store.read_last_alert_date(),
                 )
 
-                if alert_decision.should_send:
+                alert_date: date | None = alert_decision.alert_date
+                if alert_decision.should_send and alert_date is not None:
                     try:
                         EmailSender(app_config.email).send_report(
                             subject=ALERT_SUBJECT,
-                            body=formatted_report,
+                            body=format_daily_alert_report(
+                                report,
+                                alert_date,
+                            ),
                         )
                     except EmailError as error:
                         _handle_error(error, debug=args.debug)
 
-                    if alert_decision.alert_date is not None:
-                        alert_store.write_last_alert_date(alert_decision.alert_date)
+                    alert_store.write_last_alert_date(alert_date)
 
         if app_config.vnstat.monthly_alert_gb > 0:
             current_period_start: date = report.billing_periods[-1].start_date

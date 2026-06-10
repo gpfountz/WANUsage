@@ -7,6 +7,30 @@ import pytest
 from wanusage.config import AppConfig, ConfigError, load_config
 
 
+@pytest.fixture(autouse=True)
+def write_private_test_configs(monkeypatch: pytest.MonkeyPatch) -> None:
+    original_write_text = Path.write_text
+
+    def write_text(
+        path: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        written_characters: int = original_write_text(
+            path,
+            data,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+        )
+        path.chmod(0o600)
+        return written_characters
+
+    monkeypatch.setattr(Path, "write_text", write_text)
+
+
 def test_load_config_reads_typed_values(tmp_path: Path) -> None:
     config_path: Path = tmp_path / "wanusage.toml"
     config_path.write_text(
@@ -20,6 +44,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+reporting_timezone = "America/New_York"
 billing_cycle_day = 14
 default_days = 7
 daily_alert_gb = 50
@@ -44,6 +69,7 @@ to_address = "recipient@example.com"
     assert config.router.ssh_key_path == Path("~/router-key").expanduser()
     assert config.vnstat.database_path == "/var/lib/vnstat/vnstat.db"
     assert config.vnstat.interface_name == "eth0"
+    assert config.vnstat.reporting_timezone.key == "America/New_York"
     assert config.vnstat.billing_cycle_day == 14
     assert config.vnstat.default_days == 7
     assert config.vnstat.daily_alert_gb == 50
@@ -52,6 +78,7 @@ to_address = "recipient@example.com"
     assert config.email.from_address == "wan@example.com"
     assert config.email.to_address == "recipient@example.com"
     assert config.email.use_tls is True
+    assert "secret" not in repr(config.email)
 
 
 def test_load_config_rejects_missing_required_section(tmp_path: Path) -> None:
@@ -59,6 +86,41 @@ def test_load_config_rejects_missing_required_section(tmp_path: Path) -> None:
     config_path.write_text("[router]\nhost = '192.168.1.1'\n", encoding="utf-8")
 
     with pytest.raises(ConfigError, match="Missing required"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_group_readable_file(tmp_path: Path) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_path.write_text("[router]\n", encoding="utf-8")
+    config_path.chmod(0o640)
+
+    with pytest.raises(ConfigError, match="permissions"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_unknown_reporting_timezone(tmp_path: Path) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_path.write_text(
+        """
+[router]
+host = "192.168.1.1"
+port = 22
+username = "root"
+ssh_key_path = "~/router-key"
+
+[vnstat]
+database_path = "/var/lib/vnstat/vnstat.db"
+interface_name = "eth0"
+reporting_timezone = "Not/A_Timezone"
+billing_cycle_day = 14
+default_days = 7
+daily_alert_gb = 50
+monthly_alert_gb = 1000
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="Unknown IANA timezone"):
         load_config(config_path)
 
 
@@ -79,6 +141,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+reporting_timezone = "America/New_York"
 billing_cycle_day = 14
 default_days = 7
 daily_alert_gb = 50
@@ -108,6 +171,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+reporting_timezone = "America/New_York"
 billing_cycle_day = 14
 default_days = 7
 daily_alert_gb = 50
@@ -149,6 +213,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+reporting_timezone = "America/New_York"
 billing_cycle_day = 14
 default_days = 7
 daily_alert_gb = 50
@@ -182,6 +247,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+reporting_timezone = "America/New_York"
 billing_cycle_day = 14
 default_days = 61
 daily_alert_gb = 50
@@ -207,6 +273,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+reporting_timezone = "America/New_York"
 billing_cycle_day = 14
 default_days = 7
 daily_alert_gb = 1000
@@ -232,6 +299,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+reporting_timezone = "America/New_York"
 billing_cycle_day = 14
 default_days = 7
 daily_alert_gb = 50
@@ -261,6 +329,7 @@ ssh_key_path = "~/router-key"
 [vnstat]
 database_path = "/var/lib/vnstat/vnstat.db"
 interface_name = "eth0"
+reporting_timezone = "America/New_York"
 billing_cycle_day = {billing_cycle_day}
 default_days = 7
 daily_alert_gb = 50
