@@ -24,10 +24,10 @@ class ParamikoCommandRunner:
 
     def run(self, command: str) -> str:
         client: paramiko.SSHClient = paramiko.SSHClient()
-        client.load_system_host_keys()
-        client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
         try:
+            client.load_system_host_keys()
+            client.set_missing_host_key_policy(paramiko.RejectPolicy())
             client.connect(
                 hostname=self.router_config.host,
                 port=self.router_config.port,
@@ -41,6 +41,11 @@ class ParamikoCommandRunner:
             exit_status: int = stdout.channel.recv_exit_status()
             stdout_text: str = stdout.read().decode("utf-8", errors="replace")
             stderr_text: str = stderr.read().decode("utf-8", errors="replace")
+        except (paramiko.SSHException, OSError) as error:
+            raise RemoteCommandError(
+                "SSH operation failed for "
+                f"{self.router_config.host}:{self.router_config.port}: {error}"
+            ) from error
         finally:
             client.close()
 
