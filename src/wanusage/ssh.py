@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -14,6 +15,11 @@ class RemoteCommandError(RuntimeError):
 
 class RemoteCommandRunner(Protocol):
     def run(self, command: str) -> str:
+        ...
+
+
+class ReadableStream(Protocol):
+    def read(self) -> bytes:
         ...
 
 
@@ -38,9 +44,15 @@ class ParamikoCommandRunner:
                 auth_timeout=self.timeout_seconds,
             )
             _stdin, stdout, stderr = client.exec_command(command, timeout=self.timeout_seconds)
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                stdout_future: Future[bytes] = executor.submit(_read_stream, stdout)
+                stderr_future: Future[bytes] = executor.submit(_read_stream, stderr)
+                stdout_bytes: bytes = stdout_future.result()
+                stderr_bytes: bytes = stderr_future.result()
+
             exit_status: int = stdout.channel.recv_exit_status()
-            stdout_text: str = stdout.read().decode("utf-8", errors="replace")
-            stderr_text: str = stderr.read().decode("utf-8", errors="replace")
+            stdout_text: str = stdout_bytes.decode("utf-8", errors="replace")
+            stderr_text: str = stderr_bytes.decode("utf-8", errors="replace")
         except (paramiko.SSHException, OSError) as error:
             raise RemoteCommandError(
                 "SSH operation failed for "
@@ -55,3 +67,7 @@ class ParamikoCommandRunner:
             )
 
         return stdout_text
+
+
+def _read_stream(stream: ReadableStream) -> bytes:
+    return stream.read()

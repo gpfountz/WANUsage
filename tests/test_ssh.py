@@ -10,19 +10,25 @@ from wanusage.ssh import ParamikoCommandRunner, RemoteCommandError
 
 
 class FakeChannel:
-    def __init__(self, exit_status: int) -> None:
+    def __init__(self, exit_status: int, *, require_streams_read: bool = False) -> None:
         self.exit_status: int = exit_status
+        self.require_streams_read: bool = require_streams_read
+        self.streams_read: set[str] = set()
 
     def recv_exit_status(self) -> int:
+        if self.require_streams_read and self.streams_read != {"stdout", "stderr"}:
+            raise AssertionError("exit status requested before streams were read")
         return self.exit_status
 
 
 class FakeStream:
-    def __init__(self, content: bytes, *, exit_status: int = 0) -> None:
+    def __init__(self, name: str, content: bytes, channel: FakeChannel) -> None:
+        self.name: str = name
         self.content: bytes = content
-        self.channel = FakeChannel(exit_status)
+        self.channel: FakeChannel = channel
 
     def read(self) -> bytes:
+        self.channel.streams_read.add(self.name)
         return self.content
 
 
@@ -32,6 +38,7 @@ class FakeSshClient:
     stdout_content: bytes = b"output"
     stderr_content: bytes = b""
     exit_status: int = 0
+    require_streams_read: bool = False
 
     def __init__(self) -> None:
         self.closed: bool = False
@@ -56,10 +63,14 @@ class FakeSshClient:
         timeout: int,
     ) -> tuple[FakeStream, FakeStream, FakeStream]:
         del timeout
+        channel = FakeChannel(
+            self.exit_status,
+            require_streams_read=self.require_streams_read,
+        )
         return (
-            FakeStream(b""),
-            FakeStream(self.stdout_content, exit_status=self.exit_status),
-            FakeStream(self.stderr_content),
+            FakeStream("stdin", b"", channel),
+            FakeStream("stdout", self.stdout_content, channel),
+            FakeStream("stderr", self.stderr_content, channel),
         )
 
     def close(self) -> None:
@@ -73,6 +84,7 @@ def reset_fake_ssh_client() -> None:
     FakeSshClient.stdout_content = b"output"
     FakeSshClient.stderr_content = b""
     FakeSshClient.exit_status = 0
+    FakeSshClient.require_streams_read = False
 
 
 def _runner() -> ParamikoCommandRunner:
@@ -126,4 +138,18 @@ def test_run_preserves_remote_command_failure_details(
     ):
         _runner().run("false")
 
+    assert FakeSshClient.instances[0].closed is True
+
+
+def test_run_drains_stdout_and_stderr_before_waiting_for_exit_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeSshClient.require_streams_read = True
+    FakeSshClient.stdout_content = b"x" * 100_000
+    FakeSshClient.stderr_content = b"y" * 100_000
+    monkeypatch.setattr("wanusage.ssh.paramiko.SSHClient", FakeSshClient)
+
+    output: str = _runner().run("large-output-command")
+
+    assert output == "x" * 100_000
     assert FakeSshClient.instances[0].closed is True
