@@ -60,7 +60,7 @@ def load_config(config_path: Path) -> AppConfig:
     return AppConfig(
         router=RouterConfig(
             host=_required_str(router_section, "host"),
-            port=_required_int(router_section, "port"),
+            port=_bounded_int(router_section, "port", minimum=1, maximum=65535),
             username=_required_str(router_section, "username"),
             ssh_key_path=Path(_required_str(router_section, "ssh_key_path")).expanduser(),
         ),
@@ -94,7 +94,13 @@ def load_config(config_path: Path) -> AppConfig:
         ),
         email=EmailConfig(
             smtp_host=_optional_str(email_section, "smtp_host"),
-            smtp_port=_optional_int(email_section, "smtp_port", default=587),
+            smtp_port=_bounded_optional_int(
+                email_section,
+                "smtp_port",
+                default=587,
+                minimum=1,
+                maximum=65535,
+            ),
             username=_optional_str(email_section, "username"),
             password=_optional_str(email_section, "password"),
             from_address=_optional_str(email_section, "from_address"),
@@ -134,20 +140,34 @@ def _optional_str(section: dict[str, Any], key: str) -> str:
 
 def _required_int(section: dict[str, Any], key: str) -> int:
     value: Any = section.get(key)
-    if not isinstance(value, int):
+    if type(value) is not int:
         raise ConfigError(f"Missing required integer config value: {key}")
     return value
 
 
 def _optional_int(section: dict[str, Any], key: str, *, default: int) -> int:
     value: Any = section.get(key, default)
-    if not isinstance(value, int):
+    if type(value) is not int:
         raise ConfigError(f"Config value must be an integer: {key}")
     return value
 
 
 def _bounded_int(section: dict[str, Any], key: str, *, minimum: int, maximum: int) -> int:
     value: int = _required_int(section, key)
+    if value < minimum or value > maximum:
+        raise ConfigError(f"Config value must be between {minimum} and {maximum}: {key}")
+    return value
+
+
+def _bounded_optional_int(
+    section: dict[str, Any],
+    key: str,
+    *,
+    default: int,
+    minimum: int,
+    maximum: int,
+) -> int:
+    value: int = _optional_int(section, key, default=default)
     if value < minimum or value > maximum:
         raise ConfigError(f"Config value must be between {minimum} and {maximum}: {key}")
     return value

@@ -62,6 +62,113 @@ def test_load_config_rejects_missing_required_section(tmp_path: Path) -> None:
         load_config(config_path)
 
 
+@pytest.mark.parametrize("port", [0, 65536])
+def test_load_config_rejects_router_port_outside_range(
+    tmp_path: Path,
+    port: int,
+) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_path.write_text(
+        f"""
+[router]
+host = "192.168.1.1"
+port = {port}
+username = "root"
+ssh_key_path = "~/router-key"
+
+[vnstat]
+database_path = "/var/lib/vnstat/vnstat.db"
+interface_name = "eth0"
+billing_cycle_day = 14
+default_days = 7
+daily_alert_gb = 50
+monthly_alert_gb = 1000
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="port"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize("smtp_port", [0, 65536])
+def test_load_config_rejects_smtp_port_outside_range(
+    tmp_path: Path,
+    smtp_port: int,
+) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_path.write_text(
+        f"""
+[router]
+host = "192.168.1.1"
+port = 22
+username = "root"
+ssh_key_path = "~/router-key"
+
+[vnstat]
+database_path = "/var/lib/vnstat/vnstat.db"
+interface_name = "eth0"
+billing_cycle_day = 14
+default_days = 7
+daily_alert_gb = 50
+monthly_alert_gb = 1000
+
+[email]
+smtp_port = {smtp_port}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="smtp_port"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize(
+    ("key", "original_value"),
+    [
+        ("port", 22),
+        ("billing_cycle_day", 14),
+        ("default_days", 7),
+        ("daily_alert_gb", 50),
+        ("monthly_alert_gb", 1000),
+        ("smtp_port", 587),
+    ],
+)
+def test_load_config_rejects_boolean_integer_values(
+    tmp_path: Path,
+    key: str,
+    original_value: int,
+) -> None:
+    config_text: str = """
+[router]
+host = "192.168.1.1"
+port = 22
+username = "root"
+ssh_key_path = "~/router-key"
+
+[vnstat]
+database_path = "/var/lib/vnstat/vnstat.db"
+interface_name = "eth0"
+billing_cycle_day = 14
+default_days = 7
+daily_alert_gb = 50
+monthly_alert_gb = 1000
+
+[email]
+smtp_port = 587
+"""
+    config_text = config_text.replace(
+        f"{key} = {original_value}",
+        f"{key} = true",
+        1,
+    )
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_path.write_text(config_text, encoding="utf-8")
+
+    with pytest.raises(ConfigError, match=key):
+        load_config(config_path)
+
+
 def test_load_config_rejects_default_days_outside_range(tmp_path: Path) -> None:
     config_path: Path = tmp_path / "wanusage.toml"
     config_path.write_text(
