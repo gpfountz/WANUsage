@@ -103,7 +103,7 @@ def _handle_report(args: argparse.Namespace) -> None:
         formatted_report: str = format_report(report)
         alert_store = AlertStateStore(alert_state_path_for_config(config_path))
         alert_decision = choose_alert(
-            report.daily_usage,
+            report.daily_alert_usage,
             daily_alert_gb=app_config.vnstat.daily_alert_gb,
             last_alert_date=alert_store.read_last_alert_date(),
         )

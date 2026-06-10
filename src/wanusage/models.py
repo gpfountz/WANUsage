@@ -24,5 +24,6 @@ class UsageReport:
     billing_cycle_day: int
     day_count: int
     daily_usage: tuple[DailyUsage, ...]
+    daily_alert_usage: tuple[DailyUsage, ...]
     billing_periods: tuple[UsagePeriod, ...]
     estimated_current_period_bytes: int
