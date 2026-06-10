@@ -45,6 +45,9 @@ def choose_alert(
     daily_alert_gb: int,
     last_alert_date: date | None,
 ) -> AlertDecision:
+    if daily_alert_gb <= 0:
+        return AlertDecision(should_send=False, alert_date=None)
+
     threshold_bytes: int = daily_alert_gb * BYTES_PER_GIB
     triggering_dates: list[date] = [
         value.usage_date
