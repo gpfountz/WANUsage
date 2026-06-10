@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import fcntl
+import os
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -21,6 +26,17 @@ class AlertDecision:
 class AlertStateStore:
     state_path: Path
 
+    @contextmanager
+    def locked(self) -> Iterator[None]:
+        lock_path: Path = self.state_path.with_suffix(f"{self.state_path.suffix}.lock")
+        lock_descriptor: int = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        with os.fdopen(lock_descriptor, "r+", encoding="utf-8") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
     def read_last_alert_date(self) -> date | None:
         if not self.state_path.exists():
             return None
@@ -32,11 +48,32 @@ class AlertStateStore:
         return date.fromisoformat(raw_value)
 
     def write_last_alert_date(self, alert_date: date) -> None:
-        self.state_path.write_text(f"{alert_date.isoformat()}\n", encoding="utf-8")
+        temporary_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=self.state_path.parent,
+                prefix=f".{self.state_path.name}.",
+                delete=False,
+            ) as temporary_file:
+                temporary_path = Path(temporary_file.name)
+                temporary_file.write(f"{alert_date.isoformat()}\n")
+                temporary_file.flush()
+                os.fsync(temporary_file.fileno())
+
+            os.replace(temporary_path, self.state_path)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
 
 
 def alert_state_path_for_config(config_path: Path) -> Path:
     return config_path.resolve().with_name("wanusage-alert-state.txt")
+
+
+def monthly_alert_state_path_for_config(config_path: Path) -> Path:
+    return config_path.resolve().with_name("wanusage-monthly-alert-state.txt")
 
 
 def choose_alert(
@@ -62,7 +99,18 @@ def choose_alert(
     return AlertDecision(should_send=True, alert_date=max(triggering_dates))
 
 
-def should_send_monthly_alert(estimated_bytes: int, monthly_alert_gb: int) -> bool:
+def should_send_monthly_alert(
+    estimated_bytes: int,
+    monthly_alert_gb: int,
+    *,
+    current_period_start: date,
+    last_alert_period_start: date | None,
+) -> bool:
     if monthly_alert_gb <= 0:
+        return False
+    if (
+        last_alert_period_start is not None
+        and current_period_start <= last_alert_period_start
+    ):
         return False
     return estimated_bytes > monthly_alert_gb * BYTES_PER_GIB

@@ -14,6 +14,7 @@ from wanusage.alerts import (
     AlertStateStore,
     alert_state_path_for_config,
     choose_alert,
+    monthly_alert_state_path_for_config,
     should_send_monthly_alert,
 )
 from wanusage.config import ConfigError, load_config
@@ -101,36 +102,47 @@ def _handle_report(args: argparse.Namespace) -> None:
             day_count=args.days if args.days is not None else app_config.vnstat.default_days,
         )
         formatted_report: str = format_report(report)
-        alert_store = AlertStateStore(alert_state_path_for_config(config_path))
-        alert_decision = choose_alert(
-            report.daily_alert_usage,
-            daily_alert_gb=app_config.vnstat.daily_alert_gb,
-            last_alert_date=alert_store.read_last_alert_date(),
-        )
-
-        if alert_decision.should_send:
-            try:
-                EmailSender(app_config.email).send_report(
-                    subject=ALERT_SUBJECT,
-                    body=formatted_report,
+        if app_config.vnstat.daily_alert_gb > 0:
+            alert_store = AlertStateStore(alert_state_path_for_config(config_path))
+            with alert_store.locked():
+                alert_decision = choose_alert(
+                    report.daily_alert_usage,
+                    daily_alert_gb=app_config.vnstat.daily_alert_gb,
+                    last_alert_date=alert_store.read_last_alert_date(),
                 )
-            except EmailError as error:
-                _handle_error(error, debug=args.debug)
 
-            if alert_decision.alert_date is not None:
-                alert_store.write_last_alert_date(alert_decision.alert_date)
+                if alert_decision.should_send:
+                    try:
+                        EmailSender(app_config.email).send_report(
+                            subject=ALERT_SUBJECT,
+                            body=formatted_report,
+                        )
+                    except EmailError as error:
+                        _handle_error(error, debug=args.debug)
 
-        if should_send_monthly_alert(
-            report.estimated_current_period_bytes,
-            app_config.vnstat.monthly_alert_gb,
-        ):
-            try:
-                EmailSender(app_config.email).send_report(
-                    subject=MONTHLY_ALERT_SUBJECT,
-                    body=formatted_report,
-                )
-            except EmailError as error:
-                _handle_error(error, debug=args.debug)
+                    if alert_decision.alert_date is not None:
+                        alert_store.write_last_alert_date(alert_decision.alert_date)
+
+        if app_config.vnstat.monthly_alert_gb > 0:
+            current_period_start: date = report.billing_periods[-1].start_date
+            monthly_alert_store = AlertStateStore(
+                monthly_alert_state_path_for_config(config_path)
+            )
+            with monthly_alert_store.locked():
+                if should_send_monthly_alert(
+                    report.estimated_current_period_bytes,
+                    app_config.vnstat.monthly_alert_gb,
+                    current_period_start=current_period_start,
+                    last_alert_period_start=monthly_alert_store.read_last_alert_date(),
+                ):
+                    try:
+                        EmailSender(app_config.email).send_report(
+                            subject=MONTHLY_ALERT_SUBJECT,
+                            body=formatted_report,
+                        )
+                    except EmailError as error:
+                        _handle_error(error, debug=args.debug)
+                    monthly_alert_store.write_last_alert_date(current_period_start)
 
         if args.email:
             try:
