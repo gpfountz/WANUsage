@@ -106,23 +106,16 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
 
     output: str = capsys.readouterr().out
     assert error.value.code == 0
-    assert "-c, --config CONFIG" in output
     assert "--config" in output
     assert "Defaults to wanusage.toml in" in output
     assert "current directory." in output
     assert "--debug" in output
-    assert "-D, --debug" in output
     assert "--days" in output
-    assert "-d, --days DAYS" in output
     assert "--email" in output
-    assert "-e, --email" in output
     assert "email.to_address" in output
     assert "--help" in output
-    assert "-h, --help" in output
     assert "--quiet" in output
-    assert "-q, --quiet" in output
     assert "--version" in output
-    assert "-v, --version" in output
     assert "--months" not in output
     assert "from -1 to" in output
     assert "vnstat.default_days" in output
@@ -134,6 +127,17 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert output.index("--email") < output.index("--help")
     assert output.index("--help") < output.index("--quiet")
     assert output.index("--quiet") < output.index("--version")
+
+    option_strings: set[tuple[str, ...]] = {
+        tuple(action.option_strings) for action in parser._actions
+    }
+    assert ("-c", "--config") in option_strings
+    assert ("-d", "--days") in option_strings
+    assert ("-D", "--debug") in option_strings
+    assert ("-e", "--email") in option_strings
+    assert ("-h", "--help") in option_strings
+    assert ("-q", "--quiet") in option_strings
+    assert ("-v", "--version") in option_strings
 
 
 def test_version_flag_prints_version(capsys: pytest.CaptureFixture[str]) -> None:
