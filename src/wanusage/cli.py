@@ -25,6 +25,8 @@ from wanusage.vnstat import VnstatClient
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the command-line parser and its validated global options."""
+
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         prog="wanusage",
         description="Report WAN usage from an OPNsense vnStat database.",
@@ -85,12 +87,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    """Parse command-line arguments and run the WAN usage workflow."""
+
     parser: argparse.ArgumentParser = build_parser()
     args: argparse.Namespace = parser.parse_args()
     _handle_report(args)
 
 
 def _handle_report(args: argparse.Namespace) -> None:
+    """Load configuration, collect usage, process alerts, and deliver output."""
+
     config_path = Path(args.config).expanduser()
 
     try:
@@ -164,6 +170,8 @@ def _handle_report(args: argparse.Namespace) -> None:
 
 
 def _handle_error(error: Exception, *, debug: bool) -> None:
+    """Write a concise or diagnostic error message and exit unsuccessfully."""
+
     if debug:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
     else:
@@ -172,7 +180,11 @@ def _handle_error(error: Exception, *, debug: bool) -> None:
 
 
 def _bounded_int(name: str, *, minimum: int, maximum: int) -> Callable[[str], int]:
+    """Create an argparse converter for an integer in an inclusive range."""
+
     def parse(value: str) -> int:
+        """Parse and range-check one command-line value."""
+
         try:
             parsed_value: int = int(value)
         except ValueError as error:

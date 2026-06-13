@@ -10,25 +10,49 @@ from wanusage.config import RouterConfig
 
 
 class RemoteCommandError(RuntimeError):
-    pass
+    """Raised when an SSH operation or remote command execution fails."""
 
 
 class RemoteCommandRunner(Protocol):
+    """Interface for executing a command on the configured remote system."""
+
     def run(self, command: str) -> str:
+        """Execute ``command`` and return its standard output as text."""
+
         ...
 
 
 class ReadableStream(Protocol):
+    """Minimal binary stream interface required by the SSH output reader."""
+
     def read(self) -> bytes:
+        """Read and return all remaining bytes from the stream."""
+
         ...
 
 
 @dataclass(frozen=True)
 class ParamikoCommandRunner:
+    """Execute commands over SSH using one configured identity and known hosts.
+
+    Unknown host keys are rejected, and Paramiko's SSH agent and implicit key
+    discovery are disabled so authentication uses only the configured key.
+    """
+
     router_config: RouterConfig
     timeout_seconds: int = 30
 
     def run(self, command: str) -> str:
+        """Run one remote command and return decoded standard output.
+
+        Standard output and standard error are drained concurrently to avoid
+        blocking when either SSH channel buffer fills.
+
+        Raises:
+            RemoteCommandError: If connection, authentication, transport, or
+                remote command execution fails.
+        """
+
         client: paramiko.SSHClient = paramiko.SSHClient()
 
         try:
@@ -72,4 +96,6 @@ class ParamikoCommandRunner:
 
 
 def _read_stream(stream: ReadableStream) -> bytes:
+    """Read an SSH stream to completion in a worker thread."""
+
     return stream.read()
