@@ -9,15 +9,26 @@ from wanusage.config import EmailConfig
 
 
 class EmailError(RuntimeError):
-    pass
+    """Raised when email configuration or SMTP delivery fails."""
 
 
 @dataclass(frozen=True)
 class EmailSender:
+    """Send plain-text usage reports through a configured SMTP server."""
+
     config: EmailConfig
     timeout_seconds: int = 30
 
     def send_report(self, subject: str, body: str) -> None:
+        """Validate SMTP settings and send a report to the configured recipient.
+
+        STARTTLS is established before authentication when enabled.
+
+        Raises:
+            EmailError: If required settings are absent, authentication would
+                occur without TLS, or SMTP delivery fails.
+        """
+
         self._validate_config()
 
         message: EmailMessage = EmailMessage()
@@ -43,6 +54,8 @@ class EmailSender:
             raise EmailError(f"Could not send email: {error}") from error
 
     def _validate_config(self) -> None:
+        """Reject incomplete or insecure SMTP settings before connecting."""
+
         missing_values: list[str] = []
         if not self.config.smtp_host:
             missing_values.append("email.smtp_host")

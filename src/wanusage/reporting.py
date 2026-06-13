@@ -8,6 +8,8 @@ from wanusage.models import DailyUsage, UsageReport
 
 
 def format_report(report: UsageReport) -> str:
+    """Render a complete plain-text usage report with aligned tables."""
+
     lines: list[str] = [
         f"WAN usage report for {format_date(report.generated_for)}",
         f"Billing cycle day is {report.billing_cycle_day}",
@@ -28,6 +30,13 @@ def format_report(report: UsageReport) -> str:
 
 
 def format_daily_alert_report(report: UsageReport, alert_date: date) -> str:
+    """Render an alert report that includes its triggering day.
+
+    Alert evaluation can use more history than the normal report displays. If
+    ``alert_date`` is present only in that hidden history, it is merged into a
+    copy of the display rows before formatting.
+    """
+
     alert_usage: DailyUsage | None = next(
         (
             value
@@ -55,6 +64,8 @@ def format_daily_alert_report(report: UsageReport, alert_date: date) -> str:
 
 
 def format_bytes(byte_count: int) -> str:
+    """Format a nonnegative byte count using binary units through PiB."""
+
     if byte_count < 0:
         raise ValueError("byte_count cannot be negative")
 
@@ -72,10 +83,14 @@ def format_bytes(byte_count: int) -> str:
 
 
 def format_date(value: date) -> str:
+    """Format a date as unpadded ``M/D/YYYY``."""
+
     return f"{value.month}/{value.day}/{value.year}"
 
 
 def _format_billing_table(report: UsageReport) -> list[str]:
+    """Build the billing-period table, including the current estimate."""
+
     rows: list[tuple[str, str]] = [
         (
             period.name.removesuffix(" billing period"),
@@ -100,6 +115,8 @@ def _format_daily_table(
     daily_usage: tuple[DailyUsage, ...],
     report_date: date,
 ) -> list[str]:
+    """Build the daily-usage table and label the report date as ``Today``."""
+
     rows: list[tuple[str, str]] = [
         (
             "Today" if value.usage_date == report_date else format_date(value.usage_date),
@@ -119,12 +136,16 @@ def _format_table(
     rows: Sequence[tuple[str, ...]],
     right_aligned_columns: frozenset[int],
 ) -> list[str]:
+    """Render rows as a fixed-width plain-text table."""
+
     column_widths: tuple[int, ...] = tuple(
         max(len(headers[index]), *(len(row[index]) for row in rows))
         for index in range(len(headers))
     )
 
     def format_row(row: tuple[str, ...]) -> str:
+        """Pad one row according to the calculated column widths."""
+
         cells: list[str] = []
         for index, value in enumerate(row):
             if index in right_aligned_columns:
@@ -138,4 +159,6 @@ def _format_table(
 
 
 def sort_daily_usage(values: list[DailyUsage]) -> tuple[DailyUsage, ...]:
+    """Return daily usage records ordered from oldest to newest."""
+
     return tuple(sorted(values, key=lambda value: value.usage_date))

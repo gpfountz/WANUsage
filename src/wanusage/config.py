@@ -10,6 +10,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 @dataclass(frozen=True)
 class RouterConfig:
+    """SSH connection settings for the OPNsense router."""
+
     host: str
     port: int
     username: str
@@ -18,6 +20,8 @@ class RouterConfig:
 
 @dataclass(frozen=True)
 class VnstatConfig:
+    """vnStat query, reporting, billing-cycle, and alert settings."""
+
     database_path: str
     interface_name: str
     reporting_timezone: ZoneInfo
@@ -29,6 +33,8 @@ class VnstatConfig:
 
 @dataclass(frozen=True)
 class EmailConfig:
+    """SMTP settings used for requested reports and automatic alerts."""
+
     smtp_host: str
     smtp_port: int
     username: str
@@ -40,16 +46,28 @@ class EmailConfig:
 
 @dataclass(frozen=True)
 class AppConfig:
+    """The complete validated application configuration."""
+
     router: RouterConfig
     vnstat: VnstatConfig
     email: EmailConfig
 
 
 class ConfigError(ValueError):
-    pass
+    """Raised when the configuration file is missing, unsafe, or invalid."""
 
 
 def load_config(config_path: Path) -> AppConfig:
+    """Load and validate an application configuration from a private TOML file.
+
+    The file must not grant any permissions to group or other users because it
+    may contain SSH paths and SMTP credentials.
+
+    Raises:
+        ConfigError: If the file is missing, insecure, malformed, or contains an
+            invalid or missing setting.
+    """
+
     if not config_path.exists():
         raise ConfigError(f"Config file does not exist: {config_path}")
     if S_IMODE(config_path.stat().st_mode) & 0o077:
@@ -122,6 +140,8 @@ def load_config(config_path: Path) -> AppConfig:
 
 
 def _required_section(raw_config: dict[str, Any], section_name: str) -> dict[str, Any]:
+    """Return a required TOML table or raise ``ConfigError``."""
+
     section: Any = raw_config.get(section_name)
     if not isinstance(section, dict):
         raise ConfigError(f"Missing required [{section_name}] config section")
@@ -129,6 +149,8 @@ def _required_section(raw_config: dict[str, Any], section_name: str) -> dict[str
 
 
 def _optional_section(raw_config: dict[str, Any], section_name: str) -> dict[str, Any]:
+    """Return an optional TOML table, defaulting to an empty table."""
+
     section: Any = raw_config.get(section_name, {})
     if not isinstance(section, dict):
         raise ConfigError(f"[{section_name}] config section must be a table")
@@ -136,6 +158,8 @@ def _optional_section(raw_config: dict[str, Any], section_name: str) -> dict[str
 
 
 def _required_str(section: dict[str, Any], key: str) -> str:
+    """Return a required nonempty string setting."""
+
     value: Any = section.get(key)
     if not isinstance(value, str) or not value:
         raise ConfigError(f"Missing required string config value: {key}")
@@ -143,6 +167,8 @@ def _required_str(section: dict[str, Any], key: str) -> str:
 
 
 def _optional_str(section: dict[str, Any], key: str) -> str:
+    """Return an optional string setting, defaulting to an empty string."""
+
     value: Any = section.get(key, "")
     if not isinstance(value, str):
         raise ConfigError(f"Config value must be a string: {key}")
@@ -150,6 +176,8 @@ def _optional_str(section: dict[str, Any], key: str) -> str:
 
 
 def _required_int(section: dict[str, Any], key: str) -> int:
+    """Return a required integer setting while rejecting booleans."""
+
     value: Any = section.get(key)
     if type(value) is not int:
         raise ConfigError(f"Missing required integer config value: {key}")
@@ -157,6 +185,8 @@ def _required_int(section: dict[str, Any], key: str) -> int:
 
 
 def _optional_int(section: dict[str, Any], key: str, *, default: int) -> int:
+    """Return an optional integer setting or its supplied default."""
+
     value: Any = section.get(key, default)
     if type(value) is not int:
         raise ConfigError(f"Config value must be an integer: {key}")
@@ -164,6 +194,8 @@ def _optional_int(section: dict[str, Any], key: str, *, default: int) -> int:
 
 
 def _bounded_int(section: dict[str, Any], key: str, *, minimum: int, maximum: int) -> int:
+    """Return a required integer constrained to an inclusive range."""
+
     value: int = _required_int(section, key)
     if value < minimum or value > maximum:
         raise ConfigError(f"Config value must be between {minimum} and {maximum}: {key}")
@@ -178,6 +210,8 @@ def _bounded_optional_int(
     minimum: int,
     maximum: int,
 ) -> int:
+    """Return an optional integer constrained to an inclusive range."""
+
     value: int = _optional_int(section, key, default=default)
     if value < minimum or value > maximum:
         raise ConfigError(f"Config value must be between {minimum} and {maximum}: {key}")
@@ -185,6 +219,8 @@ def _bounded_optional_int(
 
 
 def _optional_bool(section: dict[str, Any], key: str, *, default: bool) -> bool:
+    """Return an optional boolean setting or its supplied default."""
+
     value: Any = section.get(key, default)
     if not isinstance(value, bool):
         raise ConfigError(f"Config value must be a boolean: {key}")
@@ -192,6 +228,8 @@ def _optional_bool(section: dict[str, Any], key: str, *, default: bool) -> bool:
 
 
 def _required_timezone(section: dict[str, Any], key: str) -> ZoneInfo:
+    """Return a required IANA timezone as a ``ZoneInfo`` instance."""
+
     timezone_name: str = _required_str(section, key)
     try:
         return ZoneInfo(timezone_name)

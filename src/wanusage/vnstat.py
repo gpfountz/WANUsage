@@ -20,6 +20,8 @@ MAX_DAILY_HISTORY_DAYS: int = 60
 
 @dataclass(frozen=True)
 class VnstatClient:
+    """Retrieve vnStat usage over SSH and assemble a typed usage report."""
+
     command_runner: RemoteCommandRunner
     config: VnstatConfig
 
@@ -29,6 +31,14 @@ class VnstatClient:
         *,
         day_count: int = 7,
     ) -> UsageReport:
+        """Fetch daily and billing usage for ``today`` in one remote SSH call.
+
+        ``day_count`` controls displayed history: ``-1`` omits daily rows,
+        ``0`` includes only today, and a positive value includes that many
+        completed days plus today. Daily alerting may request additional hidden
+        history without changing the report's displayed rows.
+        """
+
         billing_windows: tuple[DateWindow, ...] = calculate_billing_windows(
             today,
             2,
@@ -76,6 +86,8 @@ class VnstatClient:
         day_count: int,
         billing_windows: tuple[DateWindow, ...],
     ) -> list[str]:
+        """Build the tagged SQLite statements required for one usage report."""
+
         queries: list[str] = []
         daily_history_days: int = _daily_history_days(
             day_count,
@@ -99,6 +111,8 @@ class VnstatClient:
 
 
 def _daily_history_days(day_count: int, *, daily_alerts_enabled: bool) -> int:
+    """Return the history depth needed to satisfy reporting and daily alerts."""
+
     report_history_days: int = day_count if day_count >= 0 else -1
     alert_history_days: int = MAX_DAILY_HISTORY_DAYS if daily_alerts_enabled else -1
     return max(report_history_days, alert_history_days)
@@ -109,6 +123,8 @@ def _select_report_daily_usage(
     today: date,
     day_count: int,
 ) -> tuple[DailyUsage, ...]:
+    """Select displayed daily rows from the possibly longer alert history."""
+
     if day_count < 0:
         return ()
 
@@ -121,6 +137,12 @@ def _select_report_daily_usage(
 
 
 def _sqlite_command(database_path: str, query: str) -> str:
+    """Build a shell-safe, read-only SQLite command for a batch of statements.
+
+    The SQL is base64 encoded locally so shell metacharacters and multiline
+    statements are not interpreted by the remote shell.
+    """
+
     quoted_database_path: str = shlex.quote(database_path)
     encoded_query: str = base64.b64encode(query.encode("utf-8")).decode("ascii")
     return (
@@ -130,10 +152,14 @@ def _sqlite_command(database_path: str, query: str) -> str:
 
 
 def _sql_string(value: str) -> str:
+    """Quote a value as a SQLite string literal."""
+
     return "'" + value.replace("'", "''") + "'"
 
 
 def _daily_usage_query(window: DateWindow, interface_name: str) -> str:
+    """Build a query for combined RX and TX totals grouped by day."""
+
     return (
         "select 'daily', day.date, sum(day.rx) + sum(day.tx) "
         "from day "
@@ -147,6 +173,8 @@ def _daily_usage_query(window: DateWindow, interface_name: str) -> str:
 
 
 def _billing_total_query(window: DateWindow, interface_name: str, index: int) -> str:
+    """Build a tagged query for one billing window's combined RX and TX total."""
+
     return (
         f"select 'billing_{index}', '', coalesce(sum(day.rx) + sum(day.tx), 0) "
         "from day "
@@ -158,6 +186,12 @@ def _billing_total_query(window: DateWindow, interface_name: str, index: int) ->
 
 
 def _parse_report_results(output: str) -> tuple[list[DailyUsage], dict[int, int]]:
+    """Parse tagged pipe-delimited SQLite rows into daily and billing totals.
+
+    Raises:
+        ValueError: If a row has an unexpected shape, type tag, date, or number.
+    """
+
     daily_usage: list[DailyUsage] = []
     billing_totals: dict[int, int] = {}
 
@@ -193,6 +227,8 @@ def _build_usage_period(
     period_count: int,
     total_bytes: int,
 ) -> UsagePeriod:
+    """Create a named usage period from one billing query result."""
+
     return UsagePeriod(
         name=_billing_period_name(index, period_count),
         start_date=window.start_date,
@@ -202,6 +238,8 @@ def _build_usage_period(
 
 
 def _required_billing_total(billing_totals: dict[int, int], index: int) -> int:
+    """Return a billing total or raise when expected remote output is missing."""
+
     try:
         return billing_totals[index]
     except KeyError as error:
@@ -209,6 +247,8 @@ def _required_billing_total(billing_totals: dict[int, int], index: int) -> int:
 
 
 def _billing_period_name(index: int, period_count: int) -> str:
+    """Return a report label based on a period's position in the result set."""
+
     if index == period_count - 1:
         return "Current billing period"
     if index == period_count - 2:
