@@ -89,11 +89,13 @@ def test_build_usage_report_uses_daily_and_monthly_api_responses() -> None:
         date(2026, 7, 9),
     ]
     assert [period.name for period in report.monthly_usage] == [
+        "May 2026",
         "Jun 2026",
-        "Jul 2026 estimated",
+        "Jun 2026 estimated",
     ]
-    assert report.monthly_usage[0].total_bytes == int(778.87 * 1024**3)
-    assert report.monthly_usage[1].is_estimated is True
+    assert report.monthly_usage[1].total_bytes == int(778.87 * 1024**3)
+    assert report.monthly_usage[2].is_estimated is True
+    assert report.current_month_start == date(2026, 6, 1)
     assert report.estimated_current_month_bytes == int(937.29 * 1024**3)
     assert json_getter.requests == [
         (
@@ -109,12 +111,15 @@ def test_build_usage_report_uses_daily_and_monthly_api_responses() -> None:
     ]
 
 
-def test_zero_months_includes_only_current_month_estimate() -> None:
+def test_zero_months_includes_current_month_and_estimate() -> None:
     client, _json_getter = _client()
 
     report = client.build_usage_report(date(2026, 7, 9), day_count=0, month_count=0)
 
-    assert [period.name for period in report.monthly_usage] == ["Jul 2026 estimated"]
+    assert [period.name for period in report.monthly_usage] == [
+        "Jun 2026",
+        "Jun 2026 estimated",
+    ]
 
 
 def test_negative_months_hides_monthly_usage_but_still_supports_monthly_alerts() -> None:
@@ -124,7 +129,7 @@ def test_negative_months_hides_monthly_usage_but_still_supports_monthly_alerts()
 
     assert report.monthly_usage == ()
     assert report.estimated_current_month_bytes == int(937.29 * 1024**3)
-    assert report.current_month_start == date(2026, 7, 1)
+    assert report.current_month_start == date(2026, 6, 1)
 
 
 def test_negative_report_days_still_fetches_history_for_daily_alerts() -> None:
@@ -164,4 +169,21 @@ def test_monthly_response_must_include_estimate() -> None:
     client = VnstatClient(json_getter=json_getter, config=_config())
 
     with pytest.raises(VnstatApiError, match="estimated row"):
+        client.build_usage_report(date(2026, 7, 9))
+
+
+def test_monthly_response_must_include_at_least_one_month_row() -> None:
+    json_getter = FakeJsonGetter(
+        payloads_by_url={
+            "https://router.example.com/api/vnstat/service/daily/": {
+                "response": DAILY_RESPONSE
+            },
+            "https://router.example.com/api/vnstat/service/monthly/": {
+                "response": "estimated 1.00 GiB | 1.00 GiB | 2.00 GiB |"
+            },
+        }
+    )
+    client = VnstatClient(json_getter=json_getter, config=_config())
+
+    with pytest.raises(VnstatApiError, match="month rows"):
         client.build_usage_report(date(2026, 7, 9))

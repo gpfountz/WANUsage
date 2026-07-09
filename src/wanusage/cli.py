@@ -75,7 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Number of previous months to show, from -1 to 12. "
             "Defaults to vnstat.default_months from the config file. "
-            "Use 0 for current month only, or -1 to hide monthly usage."
+            "Use 0 for current month usage and estimate only, or -1 to hide monthly usage."
         ),
     )
     parser.add_argument(
