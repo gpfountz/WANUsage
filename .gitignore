@@ -11,7 +11,7 @@ src/.DS_Store
 
 # Local credentials and machine-specific configuration.
 wanusage.toml
-src/wanusage/apitesting/
+src/wanusage/apitesting/opencollection.yml
 *.local.toml
 .env
 *-alert-state.txt*
