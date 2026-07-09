@@ -4,7 +4,7 @@ import argparse
 import sys
 import traceback
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 from wanusage import __version__
@@ -20,8 +20,7 @@ from wanusage.alerts import (
 from wanusage.config import ConfigError, load_config
 from wanusage.emailer import EmailError, EmailSender
 from wanusage.reporting import format_daily_alert_report, format_date, format_report
-from wanusage.ssh import ParamikoCommandRunner, RemoteCommandError
-from wanusage.vnstat import VnstatClient
+from wanusage.vnstat import UrllibJsonGetter, VnstatApiError, VnstatClient
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -44,9 +43,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-d",
         "--days",
-        type=_bounded_int("days", minimum=-1, maximum=60),
+        type=_bounded_int("days", minimum=-1, maximum=29),
         help=(
-            "Number of previous completed days to show, from -1 to 60. "
+            "Number of previous completed days to show, from -1 to 29. "
             "Defaults to vnstat.default_days from the config file. "
             "Use 0 for current day only, or -1 to hide daily usage."
         ),
@@ -68,6 +67,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--help",
         action="help",
         help="Show this help message and exit.",
+    )
+    parser.add_argument(
+        "-m",
+        "--months",
+        type=_bounded_int("months", minimum=-1, maximum=12),
+        help=(
+            "Number of previous months to show, from -1 to 12. "
+            "Defaults to vnstat.default_months from the config file. "
+            "Use 0 for current month only, or -1 to hide monthly usage."
+        ),
     )
     parser.add_argument(
         "-q",
@@ -101,12 +110,17 @@ def _handle_report(args: argparse.Namespace) -> None:
 
     try:
         app_config = load_config(config_path)
-        command_runner = ParamikoCommandRunner(app_config.router)
-        vnstat_client = VnstatClient(command_runner=command_runner, config=app_config.vnstat)
-        report_date: date = datetime.now(app_config.vnstat.reporting_timezone).date()
+        vnstat_client = VnstatClient(
+            json_getter=UrllibJsonGetter(),
+            config=app_config.vnstat,
+        )
+        report_date: date = date.today()
         report = vnstat_client.build_usage_report(
             report_date,
             day_count=args.days if args.days is not None else app_config.vnstat.default_days,
+            month_count=(
+                args.months if args.months is not None else app_config.vnstat.default_months
+            ),
         )
         formatted_report: str = format_report(report)
         if app_config.vnstat.daily_alert_gb > 0:
@@ -134,15 +148,14 @@ def _handle_report(args: argparse.Namespace) -> None:
                     alert_store.write_last_alert_date(alert_date)
 
         if app_config.vnstat.monthly_alert_gb > 0:
-            current_period_start: date = report.billing_periods[-1].start_date
             monthly_alert_store = AlertStateStore(
                 monthly_alert_state_path_for_config(config_path)
             )
             with monthly_alert_store.locked():
                 if should_send_monthly_alert(
-                    report.estimated_current_period_bytes,
+                    report.estimated_current_month_bytes,
                     app_config.vnstat.monthly_alert_gb,
-                    current_period_start=current_period_start,
+                    current_period_start=report.current_month_start,
                     last_alert_period_start=monthly_alert_store.read_last_alert_date(),
                 ):
                     try:
@@ -152,7 +165,7 @@ def _handle_report(args: argparse.Namespace) -> None:
                         )
                     except EmailError as error:
                         _handle_error(error, debug=args.debug)
-                    monthly_alert_store.write_last_alert_date(current_period_start)
+                    monthly_alert_store.write_last_alert_date(report.current_month_start)
 
         if args.email:
             try:
@@ -165,7 +178,7 @@ def _handle_report(args: argparse.Namespace) -> None:
 
         if not args.quiet:
             print(formatted_report)
-    except (ConfigError, RemoteCommandError, OSError, ValueError) as error:
+    except (ConfigError, VnstatApiError, OSError, ValueError) as error:
         _handle_error(error, debug=args.debug)
 
 

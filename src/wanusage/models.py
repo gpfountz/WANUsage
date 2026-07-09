@@ -20,20 +20,22 @@ class UsagePeriod:
     start_date: date
     end_date: date
     total_bytes: int
+    is_estimated: bool = False
 
 
 @dataclass(frozen=True)
 class UsageReport:
-    """All measured and estimated data needed to render reports and evaluate alerts.
+    """All API usage data needed to render reports and evaluate alerts.
 
     ``daily_usage`` contains only rows requested for display, while
     ``daily_alert_usage`` may retain a longer history for alert evaluation.
     """
 
     generated_for: date
-    billing_cycle_day: int
     day_count: int
+    month_count: int
     daily_usage: tuple[DailyUsage, ...]
     daily_alert_usage: tuple[DailyUsage, ...]
-    billing_periods: tuple[UsagePeriod, ...]
-    estimated_current_period_bytes: int
+    monthly_usage: tuple[UsagePeriod, ...]
+    current_month_start: date
+    estimated_current_month_bytes: int

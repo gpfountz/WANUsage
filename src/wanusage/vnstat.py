@@ -1,28 +1,107 @@
 from __future__ import annotations
 
 import base64
-import shlex
+import json
+import re
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
+from typing import Any, Protocol
 
-from wanusage.billing import (
-    DateWindow,
-    calculate_billing_windows,
-    estimate_period_usage,
-)
 from wanusage.config import VnstatConfig
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
 from wanusage.reporting import sort_daily_usage
-from wanusage.ssh import RemoteCommandRunner
 
-MAX_DAILY_HISTORY_DAYS: int = 60
+BYTES_PER_UNIT: dict[str, int] = {
+    "B": 1,
+    "KiB": 1024,
+    "MiB": 1024**2,
+    "GiB": 1024**3,
+    "TiB": 1024**4,
+    "PiB": 1024**5,
+}
+DAILY_DATE_PATTERN: re.Pattern[str] = re.compile(r"\b\d{2}/\d{2}/\d{2}\b")
+MONTH_PATTERN: re.Pattern[str] = re.compile(
+    r"\b(?P<month>Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+'(?P<year>\d{2})\b"
+)
+MONTH_NUMBERS: dict[str, int] = {
+    "Jan": 1,
+    "Feb": 2,
+    "Mar": 3,
+    "Apr": 4,
+    "May": 5,
+    "Jun": 6,
+    "Jul": 7,
+    "Aug": 8,
+    "Sep": 9,
+    "Oct": 10,
+    "Nov": 11,
+    "Dec": 12,
+}
+
+
+class VnstatApiError(RuntimeError):
+    """Raised when an OPNsense vnStat API request or response parse fails."""
+
+
+class JsonGetter(Protocol):
+    """Interface for retrieving JSON documents from authenticated API endpoints."""
+
+    def get_json(self, url: str, *, key: str, secret: str) -> dict[str, Any]:
+        """Return the decoded JSON object from ``url``."""
+
+        ...
+
+
+@dataclass(frozen=True)
+class UrllibJsonGetter:
+    """Retrieve JSON over HTTPS using Basic Auth and the standard library."""
+
+    timeout_seconds: int = 30
+
+    def get_json(self, url: str, *, key: str, secret: str) -> dict[str, Any]:
+        """Fetch and decode one API response.
+
+        TLS certificate and hostname validation use Python's default HTTPS
+        context. The response must be a JSON object.
+
+        Raises:
+            VnstatApiError: If the request fails or the response is not a JSON
+                object.
+        """
+
+        auth_header: str = base64.b64encode(f"{key}:{secret}".encode()).decode("ascii")
+        request = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Basic {auth_header}",
+            },
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+                raw_response: bytes = response.read()
+        except (OSError, urllib.error.URLError) as error:
+            raise VnstatApiError(f"Could not fetch vnStat API URL {url}: {error}") from error
+
+        try:
+            decoded_response: Any = json.loads(raw_response)
+        except json.JSONDecodeError as error:
+            raise VnstatApiError(f"vnStat API URL {url} did not return valid JSON") from error
+
+        if not isinstance(decoded_response, dict):
+            raise VnstatApiError(f"vnStat API URL {url} returned a non-object JSON value")
+        return decoded_response
 
 
 @dataclass(frozen=True)
 class VnstatClient:
-    """Retrieve vnStat usage over SSH and assemble a typed usage report."""
+    """Retrieve vnStat usage from the OPNsense API and assemble a typed report."""
 
-    command_runner: RemoteCommandRunner
+    json_getter: JsonGetter
     config: VnstatConfig
 
     def build_usage_report(
@@ -30,92 +109,124 @@ class VnstatClient:
         today: date,
         *,
         day_count: int = 7,
+        month_count: int = 1,
     ) -> UsageReport:
-        """Fetch daily and billing usage for ``today`` in one remote SSH call.
+        """Fetch daily and monthly API data and build a report for ``today``.
 
-        ``day_count`` controls displayed history: ``-1`` omits daily rows,
+        ``day_count`` controls displayed daily history: ``-1`` omits daily rows,
         ``0`` includes only today, and a positive value includes that many
-        completed days plus today. Daily alerting may request additional hidden
-        history without changing the report's displayed rows.
+        previous days plus today. ``month_count`` follows the same pattern for
+        previous months, with ``0`` showing only the current estimated month.
         """
 
-        billing_windows: tuple[DateWindow, ...] = calculate_billing_windows(
-            today,
-            2,
-            self.config.billing_cycle_day,
-        )
-        queries: list[str] = self._build_report_queries(today, day_count, billing_windows)
-        output: str = self.command_runner.run(
-            _sqlite_command(self.config.database_path, "\n".join(queries))
-        )
-        daily_usage, billing_totals = _parse_report_results(output)
-        sorted_daily_usage: tuple[DailyUsage, ...] = sort_daily_usage(daily_usage)
-        current_period_index: int = len(billing_windows) - 1
-        current_period_total: int = _required_billing_total(
-            billing_totals,
-            current_period_index,
-        )
-
-        return UsageReport(
-            generated_for=today,
-            billing_cycle_day=self.config.billing_cycle_day,
-            day_count=day_count,
-            daily_usage=_select_report_daily_usage(sorted_daily_usage, today, day_count),
-            daily_alert_usage=(
-                sorted_daily_usage if self.config.daily_alert_gb > 0 else ()
-            ),
-            billing_periods=tuple(
-                _build_usage_period(
-                    window,
-                    index,
-                    len(billing_windows),
-                    _required_billing_total(billing_totals, index),
-                )
-                for index, window in enumerate(billing_windows)
-            ),
-            estimated_current_period_bytes=estimate_period_usage(
-                current_period_total,
-                billing_windows[current_period_index],
-                today,
-            ),
-        )
-
-    def _build_report_queries(
-        self,
-        today: date,
-        day_count: int,
-        billing_windows: tuple[DateWindow, ...],
-    ) -> list[str]:
-        """Build the tagged SQLite statements required for one usage report."""
-
-        queries: list[str] = []
-        daily_history_days: int = _daily_history_days(
-            day_count,
-            daily_alerts_enabled=self.config.daily_alert_gb > 0,
-        )
-        if daily_history_days >= 0:
-            queries.append(
-                _daily_usage_query(
-                    DateWindow(
-                        start_date=today - timedelta(days=daily_history_days),
-                        end_date=today + timedelta(days=1),
+        daily_usage: tuple[DailyUsage, ...] = ()
+        if day_count >= 0 or self.config.daily_alert_gb > 0:
+            daily_usage = _parse_daily_response(
+                _response_text(
+                    self.json_getter.get_json(
+                        self.config.daily_url,
+                        key=self.config.key,
+                        secret=self.config.secret,
                     ),
-                    self.config.interface_name,
+                    self.config.daily_url,
                 )
             )
-        queries.extend(
-            _billing_total_query(window, self.config.interface_name, index)
-            for index, window in enumerate(billing_windows)
+
+        monthly_usage: tuple[UsagePeriod, ...] = ()
+        current_month_start: date = today.replace(day=1)
+        estimated_current_month_bytes: int = 0
+        if month_count >= 0 or self.config.monthly_alert_gb > 0:
+            completed_months, estimated_current_month_bytes = _parse_monthly_response(
+                _response_text(
+                    self.json_getter.get_json(
+                        self.config.monthly_url,
+                        key=self.config.key,
+                        secret=self.config.secret,
+                    ),
+                    self.config.monthly_url,
+                ),
+            )
+            monthly_usage = _select_report_monthly_usage(
+                completed_months,
+                current_month_start=current_month_start,
+                estimated_current_month_bytes=estimated_current_month_bytes,
+                month_count=month_count,
+            )
+
+        sorted_daily_usage: tuple[DailyUsage, ...] = sort_daily_usage(list(daily_usage))
+        return UsageReport(
+            generated_for=today,
+            day_count=day_count,
+            month_count=month_count,
+            daily_usage=_select_report_daily_usage(sorted_daily_usage, today, day_count),
+            daily_alert_usage=sorted_daily_usage if self.config.daily_alert_gb > 0 else (),
+            monthly_usage=monthly_usage,
+            current_month_start=current_month_start,
+            estimated_current_month_bytes=estimated_current_month_bytes,
         )
-        return queries
 
 
-def _daily_history_days(day_count: int, *, daily_alerts_enabled: bool) -> int:
-    """Return the history depth needed to satisfy reporting and daily alerts."""
+def _response_text(payload: dict[str, Any], url: str) -> str:
+    """Extract the vnStat text table from an OPNsense API response object."""
 
-    report_history_days: int = day_count if day_count >= 0 else -1
-    alert_history_days: int = MAX_DAILY_HISTORY_DAYS if daily_alerts_enabled else -1
-    return max(report_history_days, alert_history_days)
+    response: Any = payload.get("response")
+    if not isinstance(response, str):
+        raise VnstatApiError(f"vnStat API URL {url} response field must be a string")
+    return response
+
+
+def _parse_daily_response(response_text: str) -> tuple[DailyUsage, ...]:
+    """Parse the daily vnStat text table into daily usage rows."""
+
+    daily_usage: list[DailyUsage] = []
+    for line in response_text.splitlines():
+        date_match: re.Match[str] | None = DAILY_DATE_PATTERN.search(line)
+        if date_match is None:
+            continue
+
+        daily_usage.append(
+            DailyUsage(
+                usage_date=_parse_daily_date(date_match.group(0)),
+                total_bytes=_parse_total_column(line),
+            )
+        )
+
+    return sort_daily_usage(daily_usage)
+
+
+def _parse_monthly_response(response_text: str) -> tuple[tuple[UsagePeriod, ...], int]:
+    """Parse the monthly vnStat table and current-month estimate."""
+
+    completed_months: list[UsagePeriod] = []
+    estimated_current_month_bytes: int | None = None
+
+    for line in response_text.splitlines():
+        stripped_line: str = line.strip()
+        if stripped_line.startswith("estimated"):
+            estimated_current_month_bytes = _parse_total_column(line)
+            continue
+
+        month_match: re.Match[str] | None = MONTH_PATTERN.search(line)
+        if month_match is None:
+            continue
+
+        month_start: date = _parse_month_start(month_match)
+        completed_months.append(
+            UsagePeriod(
+                name=_format_month_name(month_start),
+                start_date=month_start,
+                end_date=_next_month_start(month_start),
+                total_bytes=_parse_total_column(line),
+            )
+        )
+
+    if estimated_current_month_bytes is None:
+        raise VnstatApiError("vnStat monthly response did not include an estimated row")
+
+    return (
+        tuple(sorted(completed_months, key=lambda period: period.start_date)),
+        estimated_current_month_bytes,
+    )
 
 
 def _select_report_daily_usage(
@@ -123,7 +234,7 @@ def _select_report_daily_usage(
     today: date,
     day_count: int,
 ) -> tuple[DailyUsage, ...]:
-    """Select displayed daily rows from the possibly longer alert history."""
+    """Select displayed daily rows from the available API history."""
 
     if day_count < 0:
         return ()
@@ -136,121 +247,87 @@ def _select_report_daily_usage(
     )
 
 
-def _sqlite_command(database_path: str, query: str) -> str:
-    """Build a shell-safe, read-only SQLite command for a batch of statements.
+def _select_report_monthly_usage(
+    completed_months: tuple[UsagePeriod, ...],
+    *,
+    current_month_start: date,
+    estimated_current_month_bytes: int,
+    month_count: int,
+) -> tuple[UsagePeriod, ...]:
+    """Select previous months and append the current month's estimate."""
 
-    The SQL is base64 encoded locally so shell metacharacters and multiline
-    statements are not interpreted by the remote shell.
-    """
+    if month_count < 0:
+        return ()
 
-    quoted_database_path: str = shlex.quote(database_path)
-    encoded_query: str = base64.b64encode(query.encode("utf-8")).decode("ascii")
-    return (
-        f"printf %s {encoded_query} | base64 -d | "
-        f"sqlite3 -readonly -batch -separator '|' {quoted_database_path}"
+    previous_months: tuple[UsagePeriod, ...] = ()
+    if month_count > 0:
+        previous_months = tuple(
+            period
+            for period in completed_months
+            if period.start_date < current_month_start
+        )[-month_count:]
+    current_month: UsagePeriod = UsagePeriod(
+        name=f"{_format_month_name(current_month_start)} estimated",
+        start_date=current_month_start,
+        end_date=_next_month_start(current_month_start),
+        total_bytes=estimated_current_month_bytes,
+        is_estimated=True,
     )
+    return (*previous_months, current_month)
 
 
-def _sql_string(value: str) -> str:
-    """Quote a value as a SQLite string literal."""
+def _parse_total_column(line: str) -> int:
+    """Parse the total column from one vnStat table row."""
 
-    return "'" + value.replace("'", "''") + "'"
-
-
-def _daily_usage_query(window: DateWindow, interface_name: str) -> str:
-    """Build a query for combined RX and TX totals grouped by day."""
-
-    return (
-        "select 'daily', day.date, sum(day.rx) + sum(day.tx) "
-        "from day "
-        "join interface on interface.id = day.interface "
-        f"where day.date >= '{window.start_date.isoformat()}' "
-        f"and day.date < '{window.end_date.isoformat()}' "
-        f"and interface.name = {_sql_string(interface_name)} "
-        "group by day.date "
-        "order by day.date;"
-    )
+    parts: list[str] = line.split("|")
+    if len(parts) < 3:
+        raise VnstatApiError(f"Could not parse vnStat total column: {line.strip()}")
+    return _parse_byte_value(parts[2].strip())
 
 
-def _billing_total_query(window: DateWindow, interface_name: str, index: int) -> str:
-    """Build a tagged query for one billing window's combined RX and TX total."""
+def _parse_byte_value(value: str) -> int:
+    """Convert a vnStat byte value with binary units to bytes."""
 
-    return (
-        f"select 'billing_{index}', '', coalesce(sum(day.rx) + sum(day.tx), 0) "
-        "from day "
-        "join interface on interface.id = day.interface "
-        f"where day.date >= '{window.start_date.isoformat()}' "
-        f"and day.date < '{window.end_date.isoformat()}' "
-        f"and interface.name = {_sql_string(interface_name)};"
-    )
-
-
-def _parse_report_results(output: str) -> tuple[list[DailyUsage], dict[int, int]]:
-    """Parse tagged pipe-delimited SQLite rows into daily and billing totals.
-
-    Raises:
-        ValueError: If a row has an unexpected shape, type tag, date, or number.
-    """
-
-    daily_usage: list[DailyUsage] = []
-    billing_totals: dict[int, int] = {}
-
-    for line in output.splitlines():
-        stripped_line: str = line.strip()
-        if not stripped_line:
-            continue
-
-        parts: list[str] = stripped_line.split("|")
-        if len(parts) != 3:
-            raise ValueError(f"Unexpected vnStat report row: {stripped_line}")
-
-        result_type, result_date, total_bytes = parts
-        if result_type == "daily":
-            daily_usage.append(
-                DailyUsage(
-                    usage_date=date.fromisoformat(result_date),
-                    total_bytes=int(total_bytes),
-                )
-            )
-        elif result_type.startswith("billing_"):
-            billing_index: int = int(result_type.removeprefix("billing_"))
-            billing_totals[billing_index] = int(total_bytes)
-        else:
-            raise ValueError(f"Unexpected vnStat result type: {result_type}")
-
-    return daily_usage, billing_totals
-
-
-def _build_usage_period(
-    window: DateWindow,
-    index: int,
-    period_count: int,
-    total_bytes: int,
-) -> UsagePeriod:
-    """Create a named usage period from one billing query result."""
-
-    return UsagePeriod(
-        name=_billing_period_name(index, period_count),
-        start_date=window.start_date,
-        end_date=window.end_date,
-        total_bytes=total_bytes,
-    )
-
-
-def _required_billing_total(billing_totals: dict[int, int], index: int) -> int:
-    """Return a billing total or raise when expected remote output is missing."""
+    amount_text, unit = value.split()
+    if unit not in BYTES_PER_UNIT:
+        raise VnstatApiError(f"Unsupported vnStat usage unit: {unit}")
 
     try:
-        return billing_totals[index]
-    except KeyError as error:
-        raise ValueError(f"Missing vnStat billing result: billing_{index}") from error
+        amount: Decimal = Decimal(amount_text)
+    except InvalidOperation as error:
+        raise VnstatApiError(f"Invalid vnStat usage value: {value}") from error
+
+    return int(amount * BYTES_PER_UNIT[unit])
 
 
-def _billing_period_name(index: int, period_count: int) -> str:
-    """Return a report label based on a period's position in the result set."""
+def _parse_daily_date(value: str) -> date:
+    """Parse a vnStat daily ``MM/DD/YY`` date."""
 
-    if index == period_count - 1:
-        return "Current billing period"
-    if index == period_count - 2:
-        return "Previous billing period"
-    return "Billing period"
+    month_text, day_text, year_text = value.split("/")
+    return date(
+        year=2000 + int(year_text),
+        month=int(month_text),
+        day=int(day_text),
+    )
+
+
+def _parse_month_start(match: re.Match[str]) -> date:
+    """Parse a vnStat monthly label into the first day of that month."""
+
+    month_name: str = match.group("month")
+    year: int = 2000 + int(match.group("year"))
+    return date(year, MONTH_NUMBERS[month_name], 1)
+
+
+def _next_month_start(value: date) -> date:
+    """Return the first day of the month after ``value``."""
+
+    if value.month == 12:
+        return date(value.year + 1, 1, 1)
+    return date(value.year, value.month + 1, 1)
+
+
+def _format_month_name(value: date) -> str:
+    """Format a month label for the plain-text report."""
+
+    return f"{value.strftime('%b')} {value.year}"

@@ -11,6 +11,7 @@ src/.DS_Store
 
 # Local credentials and machine-specific configuration.
 wanusage.toml
+src/wanusage/apitesting/
 *.local.toml
 .env
 *-alert-state.txt*

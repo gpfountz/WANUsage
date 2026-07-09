@@ -5,28 +5,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from stat import S_IMODE
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-
-
-@dataclass(frozen=True)
-class RouterConfig:
-    """SSH connection settings for the OPNsense router."""
-
-    host: str
-    port: int
-    username: str
-    ssh_key_path: Path
 
 
 @dataclass(frozen=True)
 class VnstatConfig:
-    """vnStat query, reporting, billing-cycle, and alert settings."""
+    """vnStat API, reporting, and alert settings."""
 
-    database_path: str
-    interface_name: str
-    reporting_timezone: ZoneInfo
-    billing_cycle_day: int
+    daily_url: str
+    monthly_url: str
+    key: str
+    secret: str = field(repr=False)
     default_days: int
+    default_months: int
     daily_alert_gb: int
     monthly_alert_gb: int
 
@@ -48,7 +38,6 @@ class EmailConfig:
 class AppConfig:
     """The complete validated application configuration."""
 
-    router: RouterConfig
     vnstat: VnstatConfig
     email: EmailConfig
 
@@ -78,35 +67,30 @@ def load_config(config_path: Path) -> AppConfig:
     with config_path.open("rb") as config_file:
         raw_config: dict[str, Any] = tomllib.load(config_file)
 
-    router_section: dict[str, Any] = _required_section(raw_config, "router")
     vnstat_section: dict[str, Any] = _required_section(raw_config, "vnstat")
     email_section: dict[str, Any] = _optional_section(raw_config, "email")
 
     return AppConfig(
-        router=RouterConfig(
-            host=_required_str(router_section, "host"),
-            port=_bounded_int(router_section, "port", minimum=1, maximum=65535),
-            username=_required_str(router_section, "username"),
-            ssh_key_path=Path(_required_str(router_section, "ssh_key_path")).expanduser(),
-        ),
         vnstat=VnstatConfig(
-            database_path=_required_str(vnstat_section, "database_path"),
-            interface_name=_required_str(vnstat_section, "interface_name"),
-            reporting_timezone=_required_timezone(
+            daily_url=_required_str(vnstat_section, "daily_url"),
+            monthly_url=_required_str(
                 vnstat_section,
-                "reporting_timezone",
+                "monthly_url",
             ),
-            billing_cycle_day=_bounded_int(
-                vnstat_section,
-                "billing_cycle_day",
-                minimum=1,
-                maximum=31,
-            ),
+            key=_required_str(vnstat_section, "key"),
+            secret=_required_str(vnstat_section, "secret"),
             default_days=_bounded_int(
                 vnstat_section,
                 "default_days",
                 minimum=-1,
-                maximum=60,
+                maximum=29,
+            ),
+            default_months=_bounded_optional_int(
+                vnstat_section,
+                "default_months",
+                default=1,
+                minimum=-1,
+                maximum=12,
             ),
             daily_alert_gb=_bounded_int(
                 vnstat_section,
@@ -225,15 +209,3 @@ def _optional_bool(section: dict[str, Any], key: str, *, default: bool) -> bool:
     if not isinstance(value, bool):
         raise ConfigError(f"Config value must be a boolean: {key}")
     return value
-
-
-def _required_timezone(section: dict[str, Any], key: str) -> ZoneInfo:
-    """Return a required IANA timezone as a ``ZoneInfo`` instance."""
-
-    timezone_name: str = _required_str(section, key)
-    try:
-        return ZoneInfo(timezone_name)
-    except ZoneInfoNotFoundError as error:
-        raise ConfigError(
-            f"Unknown IANA timezone for config value {key}: {timezone_name}"
-        ) from error
