@@ -5,15 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "wanusage"
 version = "0.1.0"
-description = "Report WAN usage from an OPNsense vnStat SQLite database over SSH."
+description = "Report WAN usage from the OPNsense vnStat API."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
   { name = "Greg" }
 ]
-dependencies = [
-  "paramiko>=5,<6",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
@@ -40,9 +38,6 @@ python_version = "3.11"
 strict = true
 warn_unused_configs = true
 
-[[tool.mypy.overrides]]
-module = ["paramiko.*"]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

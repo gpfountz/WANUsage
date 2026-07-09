@@ -31,59 +31,77 @@ def write_private_test_configs(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Path, "write_text", write_text)
 
 
-def test_load_config_reads_typed_values(tmp_path: Path) -> None:
-    config_path: Path = tmp_path / "wanusage.toml"
-    config_path.write_text(
-        """
-[router]
-host = "192.168.1.1"
-port = 22
-username = "root"
-ssh_key_path = "~/router-key"
-
+def _config_text(**overrides: str) -> str:
+    values: dict[str, str] = {
+        "daily_url": '"https://router.example.com/api/vnstat/service/daily/"',
+        "monthly_url": '"https://router.example.com/api/vnstat/service/monthly/"',
+        "key": '"api-key"',
+        "secret": '"api-secret"',
+        "default_days": "7",
+        "default_months": "1",
+        "daily_alert_gb": "50",
+        "monthly_alert_gb": "1000",
+        "smtp_port": "587",
+    }
+    values.update(overrides)
+    return f"""
 [vnstat]
-database_path = "/var/lib/vnstat/vnstat.db"
-interface_name = "eth0"
-reporting_timezone = "America/New_York"
-billing_cycle_day = 14
-default_days = 7
-daily_alert_gb = 50
-monthly_alert_gb = 1000
+daily_url = {values["daily_url"]}
+monthly_url = {values["monthly_url"]}
+key = {values["key"]}
+secret = {values["secret"]}
+default_days = {values["default_days"]}
+default_months = {values["default_months"]}
+daily_alert_gb = {values["daily_alert_gb"]}
+monthly_alert_gb = {values["monthly_alert_gb"]}
 
 [email]
 smtp_host = "smtp.example.com"
-smtp_port = 587
+smtp_port = {values["smtp_port"]}
 username = "mailer"
 password = "secret"
 from_address = "wan@example.com"
 to_address = "recipient@example.com"
-""",
-        encoding="utf-8",
-    )
+"""
+
+
+def test_load_config_reads_typed_values(tmp_path: Path) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_path.write_text(_config_text(), encoding="utf-8")
 
     config: AppConfig = load_config(config_path)
 
-    assert config.router.host == "192.168.1.1"
-    assert config.router.port == 22
-    assert config.router.username == "root"
-    assert config.router.ssh_key_path == Path("~/router-key").expanduser()
-    assert config.vnstat.database_path == "/var/lib/vnstat/vnstat.db"
-    assert config.vnstat.interface_name == "eth0"
-    assert config.vnstat.reporting_timezone.key == "America/New_York"
-    assert config.vnstat.billing_cycle_day == 14
+    assert config.vnstat.daily_url == "https://router.example.com/api/vnstat/service/daily/"
+    assert config.vnstat.monthly_url == (
+        "https://router.example.com/api/vnstat/service/monthly/"
+    )
+    assert config.vnstat.key == "api-key"
+    assert config.vnstat.secret == "api-secret"
     assert config.vnstat.default_days == 7
+    assert config.vnstat.default_months == 1
     assert config.vnstat.daily_alert_gb == 50
     assert config.vnstat.monthly_alert_gb == 1000
     assert config.email.smtp_host == "smtp.example.com"
     assert config.email.from_address == "wan@example.com"
     assert config.email.to_address == "recipient@example.com"
     assert config.email.use_tls is True
+    assert "api-secret" not in repr(config.vnstat)
     assert "secret" not in repr(config.email)
+
+
+def test_load_config_defaults_default_months_to_one(tmp_path: Path) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_text: str = _config_text().replace("default_months = 1\n", "")
+    config_path.write_text(config_text, encoding="utf-8")
+
+    config: AppConfig = load_config(config_path)
+
+    assert config.vnstat.default_months == 1
 
 
 def test_load_config_rejects_missing_required_section(tmp_path: Path) -> None:
     config_path: Path = tmp_path / "wanusage.toml"
-    config_path.write_text("[router]\nhost = '192.168.1.1'\n", encoding="utf-8")
+    config_path.write_text("[email]\nsmtp_host = 'smtp.example.com'\n", encoding="utf-8")
 
     with pytest.raises(ConfigError, match="Missing required"):
         load_config(config_path)
@@ -91,66 +109,10 @@ def test_load_config_rejects_missing_required_section(tmp_path: Path) -> None:
 
 def test_load_config_rejects_group_readable_file(tmp_path: Path) -> None:
     config_path: Path = tmp_path / "wanusage.toml"
-    config_path.write_text("[router]\n", encoding="utf-8")
+    config_path.write_text("[vnstat]\n", encoding="utf-8")
     config_path.chmod(0o640)
 
     with pytest.raises(ConfigError, match="permissions"):
-        load_config(config_path)
-
-
-def test_load_config_rejects_unknown_reporting_timezone(tmp_path: Path) -> None:
-    config_path: Path = tmp_path / "wanusage.toml"
-    config_path.write_text(
-        """
-[router]
-host = "192.168.1.1"
-port = 22
-username = "root"
-ssh_key_path = "~/router-key"
-
-[vnstat]
-database_path = "/var/lib/vnstat/vnstat.db"
-interface_name = "eth0"
-reporting_timezone = "Not/A_Timezone"
-billing_cycle_day = 14
-default_days = 7
-daily_alert_gb = 50
-monthly_alert_gb = 1000
-""",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ConfigError, match="Unknown IANA timezone"):
-        load_config(config_path)
-
-
-@pytest.mark.parametrize("port", [0, 65536])
-def test_load_config_rejects_router_port_outside_range(
-    tmp_path: Path,
-    port: int,
-) -> None:
-    config_path: Path = tmp_path / "wanusage.toml"
-    config_path.write_text(
-        f"""
-[router]
-host = "192.168.1.1"
-port = {port}
-username = "root"
-ssh_key_path = "~/router-key"
-
-[vnstat]
-database_path = "/var/lib/vnstat/vnstat.db"
-interface_name = "eth0"
-reporting_timezone = "America/New_York"
-billing_cycle_day = 14
-default_days = 7
-daily_alert_gb = 50
-monthly_alert_gb = 1000
-""",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ConfigError, match="port"):
         load_config(config_path)
 
 
@@ -160,28 +122,7 @@ def test_load_config_rejects_smtp_port_outside_range(
     smtp_port: int,
 ) -> None:
     config_path: Path = tmp_path / "wanusage.toml"
-    config_path.write_text(
-        f"""
-[router]
-host = "192.168.1.1"
-port = 22
-username = "root"
-ssh_key_path = "~/router-key"
-
-[vnstat]
-database_path = "/var/lib/vnstat/vnstat.db"
-interface_name = "eth0"
-reporting_timezone = "America/New_York"
-billing_cycle_day = 14
-default_days = 7
-daily_alert_gb = 50
-monthly_alert_gb = 1000
-
-[email]
-smtp_port = {smtp_port}
-""",
-        encoding="utf-8",
-    )
+    config_path.write_text(_config_text(smtp_port=str(smtp_port)), encoding="utf-8")
 
     with pytest.raises(ConfigError, match="smtp_port"):
         load_config(config_path)
@@ -190,39 +131,19 @@ smtp_port = {smtp_port}
 @pytest.mark.parametrize(
     ("key", "original_value"),
     [
-        ("port", 22),
-        ("billing_cycle_day", 14),
-        ("default_days", 7),
-        ("daily_alert_gb", 50),
-        ("monthly_alert_gb", 1000),
-        ("smtp_port", 587),
+        ("default_days", "7"),
+        ("default_months", "1"),
+        ("daily_alert_gb", "50"),
+        ("monthly_alert_gb", "1000"),
+        ("smtp_port", "587"),
     ],
 )
 def test_load_config_rejects_boolean_integer_values(
     tmp_path: Path,
     key: str,
-    original_value: int,
+    original_value: str,
 ) -> None:
-    config_text: str = """
-[router]
-host = "192.168.1.1"
-port = 22
-username = "root"
-ssh_key_path = "~/router-key"
-
-[vnstat]
-database_path = "/var/lib/vnstat/vnstat.db"
-interface_name = "eth0"
-reporting_timezone = "America/New_York"
-billing_cycle_day = 14
-default_days = 7
-daily_alert_gb = 50
-monthly_alert_gb = 1000
-
-[email]
-smtp_port = 587
-"""
-    config_text = config_text.replace(
+    config_text: str = _config_text().replace(
         f"{key} = {original_value}",
         f"{key} = true",
         1,
@@ -234,109 +155,22 @@ smtp_port = 587
         load_config(config_path)
 
 
-def test_load_config_rejects_default_days_outside_range(tmp_path: Path) -> None:
-    config_path: Path = tmp_path / "wanusage.toml"
-    config_path.write_text(
-        """
-[router]
-host = "192.168.1.1"
-port = 22
-username = "root"
-ssh_key_path = "~/router-key"
-
-[vnstat]
-database_path = "/var/lib/vnstat/vnstat.db"
-interface_name = "eth0"
-reporting_timezone = "America/New_York"
-billing_cycle_day = 14
-default_days = 61
-daily_alert_gb = 50
-monthly_alert_gb = 1000
-""",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ConfigError, match="default_days"):
-        load_config(config_path)
-
-
-def test_load_config_rejects_daily_alert_gb_outside_range(tmp_path: Path) -> None:
-    config_path: Path = tmp_path / "wanusage.toml"
-    config_path.write_text(
-        """
-[router]
-host = "192.168.1.1"
-port = 22
-username = "root"
-ssh_key_path = "~/router-key"
-
-[vnstat]
-database_path = "/var/lib/vnstat/vnstat.db"
-interface_name = "eth0"
-reporting_timezone = "America/New_York"
-billing_cycle_day = 14
-default_days = 7
-daily_alert_gb = 1000
-monthly_alert_gb = 1000
-""",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ConfigError, match="daily_alert_gb"):
-        load_config(config_path)
-
-
-def test_load_config_rejects_monthly_alert_gb_outside_range(tmp_path: Path) -> None:
-    config_path: Path = tmp_path / "wanusage.toml"
-    config_path.write_text(
-        """
-[router]
-host = "192.168.1.1"
-port = 22
-username = "root"
-ssh_key_path = "~/router-key"
-
-[vnstat]
-database_path = "/var/lib/vnstat/vnstat.db"
-interface_name = "eth0"
-reporting_timezone = "America/New_York"
-billing_cycle_day = 14
-default_days = 7
-daily_alert_gb = 50
-monthly_alert_gb = 10000
-""",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ConfigError, match="monthly_alert_gb"):
-        load_config(config_path)
-
-
-@pytest.mark.parametrize("billing_cycle_day", [0, 32])
-def test_load_config_rejects_billing_cycle_day_outside_range(
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("default_days", "30"),
+        ("default_months", "13"),
+        ("daily_alert_gb", "1000"),
+        ("monthly_alert_gb", "10000"),
+    ],
+)
+def test_load_config_rejects_bounded_values_outside_range(
     tmp_path: Path,
-    billing_cycle_day: int,
+    key: str,
+    value: str,
 ) -> None:
     config_path: Path = tmp_path / "wanusage.toml"
-    config_path.write_text(
-        f"""
-[router]
-host = "192.168.1.1"
-port = 22
-username = "root"
-ssh_key_path = "~/router-key"
+    config_path.write_text(_config_text(**{key: value}), encoding="utf-8")
 
-[vnstat]
-database_path = "/var/lib/vnstat/vnstat.db"
-interface_name = "eth0"
-reporting_timezone = "America/New_York"
-billing_cycle_day = {billing_cycle_day}
-default_days = 7
-daily_alert_gb = 50
-monthly_alert_gb = 1000
-""",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ConfigError, match="billing_cycle_day"):
+    with pytest.raises(ConfigError, match=key):
         load_config(config_path)

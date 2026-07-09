@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime, tzinfo
+from datetime import date
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -12,7 +11,6 @@ from wanusage.cli import _handle_report, build_parser
 from wanusage.config import (
     AppConfig,
     EmailConfig,
-    RouterConfig,
     VnstatConfig,
 )
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
@@ -29,29 +27,27 @@ class RecordingEmailSender:
         self.sent_messages.append((subject, body))
 
 
-class FixedDateTime:
-    received_timezone: tzinfo | None = None
-
+class FixedDate:
     @classmethod
-    def now(cls, timezone: tzinfo | None = None) -> datetime:
-        cls.received_timezone = timezone
-        return datetime(2026, 5, 26, 1, 0, tzinfo=timezone)
+    def today(cls) -> date:
+        return date(2026, 5, 26)
+
+
+class RecordingJsonGetter:
+    def get_json(self, _url: str, *, key: str, secret: str) -> dict[str, object]:
+        del key, secret
+        return {}
 
 
 def _app_config(*, daily_alert_gb: int, monthly_alert_gb: int) -> AppConfig:
     return AppConfig(
-        router=RouterConfig(
-            host="router.example.com",
-            port=22,
-            username="root",
-            ssh_key_path=Path("/tmp/router-key"),
-        ),
         vnstat=VnstatConfig(
-            database_path="/var/lib/vnstat/vnstat.db",
-            interface_name="eth0",
-            reporting_timezone=ZoneInfo("America/New_York"),
-            billing_cycle_day=14,
+            daily_url="https://router.example.com/api/vnstat/service/daily/",
+            monthly_url="https://router.example.com/api/vnstat/service/monthly/",
+            key="api-key",
+            secret="api-secret",
             default_days=7,
+            default_months=1,
             daily_alert_gb=daily_alert_gb,
             monthly_alert_gb=monthly_alert_gb,
         ),
@@ -76,25 +72,27 @@ def _usage_report(
 ) -> UsageReport:
     return UsageReport(
         generated_for=date(2026, 5, 26),
-        billing_cycle_day=14,
         day_count=day_count,
+        month_count=1,
         daily_usage=daily_usage,
         daily_alert_usage=daily_alert_usage,
-        billing_periods=(
+        monthly_usage=(
             UsagePeriod(
-                name="Previous billing period",
-                start_date=date(2026, 4, 14),
-                end_date=date(2026, 5, 14),
+                name="Apr 2026",
+                start_date=date(2026, 4, 1),
+                end_date=date(2026, 5, 1),
                 total_bytes=500 * 1024**3,
             ),
             UsagePeriod(
-                name="Current billing period",
-                start_date=date(2026, 5, 14),
-                end_date=date(2026, 6, 14),
-                total_bytes=600 * 1024**3,
+                name="May 2026 estimated",
+                start_date=date(2026, 5, 1),
+                end_date=date(2026, 6, 1),
+                total_bytes=estimated_current_period_bytes,
+                is_estimated=True,
             ),
         ),
-        estimated_current_period_bytes=estimated_current_period_bytes,
+        current_month_start=date(2026, 5, 1),
+        estimated_current_month_bytes=estimated_current_period_bytes,
     )
 
 
@@ -114,18 +112,20 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert "--email" in output
     assert "email.to_address" in output
     assert "--help" in output
+    assert "--months" in output
     assert "--quiet" in output
     assert "--version" in output
-    assert "--months" not in output
     assert "from -1 to" in output
     assert "vnstat.default_days" in output
+    assert "vnstat.default_months" in output
     assert "hide daily" in output
     assert "usage." in output
     assert output.index("--config") < output.index("--days")
     assert output.index("--days") < output.index("--debug")
     assert output.index("--debug") < output.index("--email")
     assert output.index("--email") < output.index("--help")
-    assert output.index("--help") < output.index("--quiet")
+    assert output.index("--help") < output.index("--months")
+    assert output.index("--months") < output.index("--quiet")
     assert output.index("--quiet") < output.index("--version")
 
     option_strings: set[tuple[str, ...]] = {
@@ -136,6 +136,7 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert ("-D", "--debug") in option_strings
     assert ("-e", "--email") in option_strings
     assert ("-h", "--help") in option_strings
+    assert ("-m", "--months") in option_strings
     assert ("-q", "--quiet") in option_strings
     assert ("-v", "--version") in option_strings
 
@@ -170,6 +171,7 @@ def test_config_defaults_to_current_directory_wanusage_toml() -> None:
     assert args.config == "wanusage.toml"
     assert args.days is None
     assert args.email is False
+    assert args.months is None
     assert args.quiet is False
 
 
@@ -206,8 +208,8 @@ def test_email_flag_rejects_value() -> None:
     assert error.value.code == 2
 
 
-@pytest.mark.parametrize("value", ["-1", "0", "60"])
-def test_days_accepts_values_from_negative_1_to_60(value: str) -> None:
+@pytest.mark.parametrize("value", ["-1", "0", "29"])
+def test_days_accepts_values_from_negative_1_to_29(value: str) -> None:
     parser: argparse.ArgumentParser = build_parser()
 
     args: argparse.Namespace = parser.parse_args(["--days", value])
@@ -251,7 +253,7 @@ def test_short_quiet_flag_accepts_no_value() -> None:
     "value",
     [
         "-2",
-        "61",
+        "30",
     ],
 )
 def test_days_rejects_values_outside_range(value: str) -> None:
@@ -263,11 +265,29 @@ def test_days_rejects_values_outside_range(value: str) -> None:
     assert error.value.code == 2
 
 
-def test_months_parameter_is_not_supported() -> None:
+@pytest.mark.parametrize("value", ["-1", "0", "12"])
+def test_months_accepts_values_from_negative_1_to_12(value: str) -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["--months", value])
+
+    assert args.months == int(value)
+
+
+def test_short_months_flag_accepts_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["-m", "3"])
+
+    assert args.months == 3
+
+
+@pytest.mark.parametrize("value", ["-2", "13"])
+def test_months_rejects_values_outside_range(value: str) -> None:
     parser: argparse.ArgumentParser = build_parser()
 
     with pytest.raises(SystemExit) as error:
-        parser.parse_args(["--months", "3"])
+        parser.parse_args(["--months", value])
 
     assert error.value.code == 2
 
@@ -294,18 +314,19 @@ def test_daily_alert_workflow_includes_hidden_triggering_day(
         report_date: date,
         *,
         day_count: int = 7,
+        month_count: int = 1,
     ) -> UsageReport:
-        del day_count
+        del day_count, month_count
         captured_report_date.append(report_date)
         return report
 
     RecordingEmailSender.sent_messages = []
-    FixedDateTime.received_timezone = None
     monkeypatch.setattr("wanusage.cli.load_config", lambda _path: _app_config(
         daily_alert_gb=15,
         monthly_alert_gb=0,
     ))
-    monkeypatch.setattr("wanusage.cli.datetime", FixedDateTime)
+    monkeypatch.setattr("wanusage.cli.date", FixedDate)
+    monkeypatch.setattr("wanusage.cli.UrllibJsonGetter", RecordingJsonGetter)
     monkeypatch.setattr(VnstatClient, "build_usage_report", build_usage_report)
     monkeypatch.setattr("wanusage.cli.EmailSender", RecordingEmailSender)
 
@@ -315,12 +336,12 @@ def test_daily_alert_workflow_includes_hidden_triggering_day(
             days=-1,
             debug=False,
             email=False,
+            months=1,
             quiet=True,
         )
     )
 
     assert captured_report_date == [date(2026, 5, 26)]
-    assert FixedDateTime.received_timezone == ZoneInfo("America/New_York")
     assert RecordingEmailSender.sent_messages[0][0] == "daily high usage alert"
     assert "5/20/2026 | 20.00 GiB" in RecordingEmailSender.sent_messages[0][1]
     assert (tmp_path / "router-a-alert-state.txt").read_text(
@@ -345,8 +366,9 @@ def test_monthly_alert_workflow_sends_once_per_billing_period(
         _report_date: date,
         *,
         day_count: int = 7,
+        month_count: int = 1,
     ) -> UsageReport:
-        del day_count
+        del day_count, month_count
         return report
 
     RecordingEmailSender.sent_messages = []
@@ -354,7 +376,8 @@ def test_monthly_alert_workflow_sends_once_per_billing_period(
         daily_alert_gb=0,
         monthly_alert_gb=1000,
     ))
-    monkeypatch.setattr("wanusage.cli.datetime", FixedDateTime)
+    monkeypatch.setattr("wanusage.cli.date", FixedDate)
+    monkeypatch.setattr("wanusage.cli.UrllibJsonGetter", RecordingJsonGetter)
     monkeypatch.setattr(VnstatClient, "build_usage_report", build_usage_report)
     monkeypatch.setattr("wanusage.cli.EmailSender", RecordingEmailSender)
     args = argparse.Namespace(
@@ -362,6 +385,7 @@ def test_monthly_alert_workflow_sends_once_per_billing_period(
         days=-1,
         debug=False,
         email=False,
+        months=1,
         quiet=True,
     )
 
@@ -373,4 +397,4 @@ def test_monthly_alert_workflow_sends_once_per_billing_period(
     ]
     assert (tmp_path / "router-b-monthly-alert-state.txt").read_text(
         encoding="utf-8"
-    ) == "2026-05-14\n"
+    ) == "2026-05-01\n"

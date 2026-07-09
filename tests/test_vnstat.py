@@ -1,180 +1,167 @@
 from __future__ import annotations
 
-import base64
 from dataclasses import dataclass, field
 from datetime import date
-from zoneinfo import ZoneInfo
+from typing import Any
+
+import pytest
 
 from wanusage.config import VnstatConfig
-from wanusage.vnstat import VnstatClient
+from wanusage.vnstat import VnstatApiError, VnstatClient
+
+DAILY_RESPONSE: str = """
+ igc0  /  daily
+
+          day        rx      |     tx      |    total    |   avg. rate
+     ------------------------+-------------+-------------+---------------
+      07/07/26     27.05 GiB |    1.75 GiB |   28.80 GiB |    2.86 Mbit/s
+      07/08/26     39.78 GiB |    1.49 GiB |   41.26 GiB |    4.10 Mbit/s
+      07/09/26      8.53 GiB |    1.00 GiB |    9.53 GiB |    1.25 Mbit/s
+     ------------------------+-------------+-------------+---------------
+     estimated     11.22 GiB |    1.32 GiB |   12.53 GiB |
+"""
+
+MONTHLY_RESPONSE: str = """
+ igc0  /  monthly
+
+        month        rx      |     tx      |    total    |   avg. rate
+     ------------------------+-------------+-------------+---------------
+       May '26    922.43 GiB |   68.72 GiB |  991.15 GiB |    3.18 Mbit/s
+       Jun '26    734.49 GiB |   44.38 GiB |  778.87 GiB |    2.58 Mbit/s
+     ------------------------+-------------+-------------+---------------
+     estimated    883.89 GiB |   53.40 GiB |  937.29 GiB |
+"""
 
 
 @dataclass
-class FakeCommandRunner:
-    outputs: list[str]
-    commands: list[str] = field(default_factory=list)
+class FakeJsonGetter:
+    payloads_by_url: dict[str, dict[str, Any]]
+    requests: list[tuple[str, str, str]] = field(default_factory=list)
 
-    def run(self, command: str) -> str:
-        self.commands.append(command)
-        return self.outputs.pop(0)
+    def get_json(self, url: str, *, key: str, secret: str) -> dict[str, Any]:
+        self.requests.append((url, key, secret))
+        return self.payloads_by_url[url]
 
 
-def _config(*, daily_alert_gb: int = 50) -> VnstatConfig:
+def _config(*, daily_alert_gb: int = 50, monthly_alert_gb: int = 1000) -> VnstatConfig:
     return VnstatConfig(
-        database_path="/var/lib/vnstat/vnstat.db",
-        interface_name="eth0",
-        reporting_timezone=ZoneInfo("America/New_York"),
-        billing_cycle_day=14,
+        daily_url="https://router.example.com/api/vnstat/service/daily/",
+        monthly_url="https://router.example.com/api/vnstat/service/monthly/",
+        key="api-key",
+        secret="api-secret",
         default_days=7,
+        default_months=1,
         daily_alert_gb=daily_alert_gb,
-        monthly_alert_gb=1000,
+        monthly_alert_gb=monthly_alert_gb,
     )
 
 
-def _sql_from_command(command: str) -> str:
-    encoded_query: str = command.split("printf %s ", 1)[1].split(" | base64", 1)[0]
-    return base64.b64decode(encoded_query).decode("utf-8")
-
-
-def test_build_usage_report_executes_all_queries_in_one_remote_command() -> None:
-    command_runner = FakeCommandRunner(
-        outputs=[
-            "\n".join(
-                [
-                    "daily|2026-04-01|2048",
-                    "daily|2026-05-24|1024",
-                    "daily|2026-05-26|512",
-                    "billing_0||8192",
-                    "billing_1||4096",
-                ]
-            )
-        ]
+def _client(config: VnstatConfig | None = None) -> tuple[VnstatClient, FakeJsonGetter]:
+    json_getter = FakeJsonGetter(
+        payloads_by_url={
+            "https://router.example.com/api/vnstat/service/daily/": {
+                "response": DAILY_RESPONSE
+            },
+            "https://router.example.com/api/vnstat/service/monthly/": {
+                "response": MONTHLY_RESPONSE
+            },
+        }
     )
-    client = VnstatClient(command_runner=command_runner, config=_config())
-
-    report = client.build_usage_report(date(2026, 5, 26), day_count=7)
-
-    assert [value.total_bytes for value in report.daily_usage] == [1024, 512]
-    assert [value.total_bytes for value in report.daily_alert_usage] == [2048, 1024, 512]
-    assert report.billing_cycle_day == 14
-    assert report.billing_periods[0].total_bytes == 8192
-    assert report.billing_periods[0].name == "Previous billing period"
-    assert report.billing_periods[1].total_bytes == 4096
-    assert report.billing_periods[1].name == "Current billing period"
-    assert report.estimated_current_period_bytes == 9767
-    assert len(command_runner.commands) == 1
-
-    command: str = command_runner.commands[0]
-    query: str = _sql_from_command(command)
-    assert command.count("sqlite3 ") == 1
-    assert query.count("select ") == 3
-    assert query.count("join interface on interface.id = day.interface") == 3
-    assert "2026-03-27" in query
-    assert "2026-05-27" in query
-    assert "interface.name" in query
-    assert "eth0" in query
+    return VnstatClient(json_getter=json_getter, config=config or _config()), json_getter
 
 
-def test_build_usage_report_supports_custom_day_count_in_one_command() -> None:
-    command_runner = FakeCommandRunner(
-        outputs=[
-            "\n".join(
-                [
-                    "daily|2026-05-25|1024",
-                    "daily|2026-05-26|512",
-                    "billing_0||2",
-                    "billing_1||3",
-                ]
-            )
-        ]
-    )
-    client = VnstatClient(command_runner=command_runner, config=_config())
+def test_build_usage_report_uses_daily_and_monthly_api_responses() -> None:
+    client, json_getter = _client()
 
-    report = client.build_usage_report(date(2026, 5, 26), day_count=1)
+    report = client.build_usage_report(date(2026, 7, 9), day_count=1, month_count=1)
 
-    assert report.day_count == 1
-    assert report.billing_periods[0].name == "Previous billing period"
-    assert report.billing_periods[1].name == "Current billing period"
-    assert len(command_runner.commands) == 1
-    query: str = _sql_from_command(command_runner.commands[0])
-    assert query.count("select ") == 3
-    assert "2026-03-27" in query
-
-
-def test_zero_report_days_still_fetches_history_for_daily_alerts() -> None:
-    command_runner = FakeCommandRunner(
-        outputs=[
-            "\n".join(
-                [
-                    "daily|2026-05-20|1024",
-                    "daily|2026-05-26|512",
-                    "billing_0||2",
-                    "billing_1||3",
-                ]
-            )
-        ]
-    )
-    client = VnstatClient(command_runner=command_runner, config=_config())
-
-    report = client.build_usage_report(date(2026, 5, 26), day_count=0)
-
-    assert [value.usage_date for value in report.daily_usage] == [date(2026, 5, 26)]
-    assert [value.usage_date for value in report.daily_alert_usage] == [
-        date(2026, 5, 20),
-        date(2026, 5, 26),
+    assert [value.usage_date for value in report.daily_usage] == [
+        date(2026, 7, 8),
+        date(2026, 7, 9),
     ]
-    assert len(command_runner.commands) == 1
-    assert _sql_from_command(command_runner.commands[0]).count("select ") == 3
+    assert [value.total_bytes for value in report.daily_usage] == [
+        int(41.26 * 1024**3),
+        int(9.53 * 1024**3),
+    ]
+    assert [value.usage_date for value in report.daily_alert_usage] == [
+        date(2026, 7, 7),
+        date(2026, 7, 8),
+        date(2026, 7, 9),
+    ]
+    assert [period.name for period in report.monthly_usage] == [
+        "Jun 2026",
+        "Jul 2026 estimated",
+    ]
+    assert report.monthly_usage[0].total_bytes == int(778.87 * 1024**3)
+    assert report.monthly_usage[1].is_estimated is True
+    assert report.estimated_current_month_bytes == int(937.29 * 1024**3)
+    assert json_getter.requests == [
+        (
+            "https://router.example.com/api/vnstat/service/daily/",
+            "api-key",
+            "api-secret",
+        ),
+        (
+            "https://router.example.com/api/vnstat/service/monthly/",
+            "api-key",
+            "api-secret",
+        ),
+    ]
+
+
+def test_zero_months_includes_only_current_month_estimate() -> None:
+    client, _json_getter = _client()
+
+    report = client.build_usage_report(date(2026, 7, 9), day_count=0, month_count=0)
+
+    assert [period.name for period in report.monthly_usage] == ["Jul 2026 estimated"]
+
+
+def test_negative_months_hides_monthly_usage_but_still_supports_monthly_alerts() -> None:
+    client, _json_getter = _client()
+
+    report = client.build_usage_report(date(2026, 7, 9), day_count=-1, month_count=-1)
+
+    assert report.monthly_usage == ()
+    assert report.estimated_current_month_bytes == int(937.29 * 1024**3)
+    assert report.current_month_start == date(2026, 7, 1)
 
 
 def test_negative_report_days_still_fetches_history_for_daily_alerts() -> None:
-    command_runner = FakeCommandRunner(
-        outputs=[
-            "\n".join(
-                [
-                    "daily|2026-05-20|1024",
-                    "daily|2026-05-26|512",
-                    "billing_0||2",
-                    "billing_1||3",
-                ]
-            )
-        ]
-    )
-    client = VnstatClient(command_runner=command_runner, config=_config())
+    client, _json_getter = _client()
 
-    report = client.build_usage_report(date(2026, 5, 26), day_count=-1)
+    report = client.build_usage_report(date(2026, 7, 9), day_count=-1, month_count=-1)
 
     assert report.daily_usage == ()
     assert [value.usage_date for value in report.daily_alert_usage] == [
-        date(2026, 5, 20),
-        date(2026, 5, 26),
+        date(2026, 7, 7),
+        date(2026, 7, 8),
+        date(2026, 7, 9),
     ]
-    assert len(command_runner.commands) == 1
-    query: str = _sql_from_command(command_runner.commands[0])
-    assert query.count("select ") == 3
-    assert "2026-03-27" in query
 
 
-def test_negative_report_days_skips_daily_query_when_alerts_are_disabled() -> None:
-    command_runner = FakeCommandRunner(
-        outputs=[
-            "\n".join(
-                [
-                    "billing_0||2",
-                    "billing_1||3",
-                ]
-            )
-        ]
-    )
-    client = VnstatClient(
-        command_runner=command_runner,
-        config=_config(daily_alert_gb=0),
-    )
+def test_negative_report_days_skips_daily_api_when_alerts_are_disabled() -> None:
+    client, json_getter = _client(_config(daily_alert_gb=0, monthly_alert_gb=0))
 
-    report = client.build_usage_report(date(2026, 5, 26), day_count=-1)
+    report = client.build_usage_report(date(2026, 7, 9), day_count=-1, month_count=-1)
 
     assert report.daily_usage == ()
     assert report.daily_alert_usage == ()
-    query: str = _sql_from_command(command_runner.commands[0])
-    assert query.count("select ") == 2
-    assert "'daily'" not in query
+    assert json_getter.requests == []
+
+
+def test_monthly_response_must_include_estimate() -> None:
+    json_getter = FakeJsonGetter(
+        payloads_by_url={
+            "https://router.example.com/api/vnstat/service/daily/": {
+                "response": DAILY_RESPONSE
+            },
+            "https://router.example.com/api/vnstat/service/monthly/": {
+                "response": "Jun '26 1.00 GiB | 1.00 GiB | 2.00 GiB |"
+            },
+        }
+    )
+    client = VnstatClient(json_getter=json_getter, config=_config())
+
+    with pytest.raises(VnstatApiError, match="estimated row"):
+        client.build_usage_report(date(2026, 7, 9))

@@ -1,15 +1,10 @@
-[router]
-host = "192.168.1.1"
-port = 22
-username = "root"
-ssh_key_path = "/Users/greg/.ssh/opnsense"
-
 [vnstat]
-database_path = "/var/lib/vnstat/vnstat.db"
-interface_name = "eth0"
-reporting_timezone = "America/New_York"
-billing_cycle_day = 1
+daily_url = "https://opnsense.local/api/vnstat/service/daily/"
+monthly_url = "https://opnsense.local/api/vnstat/service/monthly/"
+key = ""
+secret = ""
 default_days = 7
+default_months = 1
 daily_alert_gb = 0
 monthly_alert_gb = 0
 

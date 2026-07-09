@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 from datetime import date
 
-from wanusage.models import DailyUsage, UsageReport
+from wanusage.models import DailyUsage, UsagePeriod, UsageReport
 
 
 def format_report(report: UsageReport) -> str:
@@ -12,12 +12,14 @@ def format_report(report: UsageReport) -> str:
 
     lines: list[str] = [
         f"WAN usage report for {format_date(report.generated_for)}",
-        f"Billing cycle day is {report.billing_cycle_day}",
     ]
 
-    if report.billing_periods:
+    if report.month_count >= 0:
         lines.append("")
-        lines.extend(_format_billing_table(report))
+        if report.monthly_usage:
+            lines.extend(_format_monthly_table(report.monthly_usage))
+        else:
+            lines.append("  No monthly usage records found.")
 
     if report.day_count >= 0:
         lines.append("")
@@ -88,24 +90,18 @@ def format_date(value: date) -> str:
     return f"{value.month}/{value.day}/{value.year}"
 
 
-def _format_billing_table(report: UsageReport) -> list[str]:
-    """Build the billing-period table, including the current estimate."""
+def _format_monthly_table(monthly_usage: tuple[UsagePeriod, ...]) -> list[str]:
+    """Build the monthly-usage table."""
 
     rows: list[tuple[str, str]] = [
         (
-            period.name.removesuffix(" billing period"),
+            period.name,
             format_bytes(period.total_bytes),
         )
-        for period in report.billing_periods
+        for period in monthly_usage
     ]
-    rows.append(
-        (
-            "Estimated",
-            format_bytes(report.estimated_current_period_bytes),
-        )
-    )
     return _format_table(
-        headers=("Billing period", "Usage"),
+        headers=("Month", "Usage"),
         rows=rows,
         right_aligned_columns=frozenset({1}),
     )
