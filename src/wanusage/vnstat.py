@@ -115,8 +115,10 @@ class VnstatClient:
 
         ``day_count`` controls displayed daily history: ``-1`` omits daily rows,
         ``0`` includes only today, and a positive value includes that many
-        previous days plus today. ``month_count`` follows the same pattern for
-        previous months, with ``0`` showing only the current estimated month.
+        previous days plus today. ``month_count`` controls how many monthly
+        rows before the current vnStat rotated month are shown; the current
+        month usage-so-far and its estimate are always shown when monthly
+        reporting is enabled.
         """
 
         daily_usage: tuple[DailyUsage, ...] = ()
@@ -136,7 +138,7 @@ class VnstatClient:
         current_month_start: date = today.replace(day=1)
         estimated_current_month_bytes: int = 0
         if month_count >= 0 or self.config.monthly_alert_gb > 0:
-            completed_months, estimated_current_month_bytes = _parse_monthly_response(
+            api_months, estimated_current_month_bytes = _parse_monthly_response(
                 _response_text(
                     self.json_getter.get_json(
                         self.config.monthly_url,
@@ -146,9 +148,11 @@ class VnstatClient:
                     self.config.monthly_url,
                 ),
             )
+            current_month: UsagePeriod = _current_month_period(api_months)
+            current_month_start = current_month.start_date
             monthly_usage = _select_report_monthly_usage(
-                completed_months,
-                current_month_start=current_month_start,
+                api_months,
+                current_month=current_month,
                 estimated_current_month_bytes=estimated_current_month_bytes,
                 month_count=month_count,
             )
@@ -195,9 +199,9 @@ def _parse_daily_response(response_text: str) -> tuple[DailyUsage, ...]:
 
 
 def _parse_monthly_response(response_text: str) -> tuple[tuple[UsagePeriod, ...], int]:
-    """Parse the monthly vnStat table and current-month estimate."""
+    """Parse the monthly vnStat table and current rotated-month estimate."""
 
-    completed_months: list[UsagePeriod] = []
+    api_months: list[UsagePeriod] = []
     estimated_current_month_bytes: int | None = None
 
     for line in response_text.splitlines():
@@ -211,7 +215,7 @@ def _parse_monthly_response(response_text: str) -> tuple[tuple[UsagePeriod, ...]
             continue
 
         month_start: date = _parse_month_start(month_match)
-        completed_months.append(
+        api_months.append(
             UsagePeriod(
                 name=_format_month_name(month_start),
                 start_date=month_start,
@@ -222,9 +226,11 @@ def _parse_monthly_response(response_text: str) -> tuple[tuple[UsagePeriod, ...]
 
     if estimated_current_month_bytes is None:
         raise VnstatApiError("vnStat monthly response did not include an estimated row")
+    if not api_months:
+        raise VnstatApiError("vnStat monthly response did not include any month rows")
 
     return (
-        tuple(sorted(completed_months, key=lambda period: period.start_date)),
+        tuple(sorted(api_months, key=lambda period: period.start_date)),
         estimated_current_month_bytes,
     )
 
@@ -247,33 +253,38 @@ def _select_report_daily_usage(
     )
 
 
+def _current_month_period(api_months: tuple[UsagePeriod, ...]) -> UsagePeriod:
+    """Return the final API month row, which vnStat reports as the current month."""
+
+    try:
+        return api_months[-1]
+    except IndexError as error:
+        raise VnstatApiError("vnStat monthly response did not include any month rows") from error
+
+
 def _select_report_monthly_usage(
-    completed_months: tuple[UsagePeriod, ...],
+    api_months: tuple[UsagePeriod, ...],
     *,
-    current_month_start: date,
+    current_month: UsagePeriod,
     estimated_current_month_bytes: int,
     month_count: int,
 ) -> tuple[UsagePeriod, ...]:
-    """Select previous months and append the current month's estimate."""
+    """Select previous months, current usage so far, and the current estimate."""
 
     if month_count < 0:
         return ()
 
     previous_months: tuple[UsagePeriod, ...] = ()
     if month_count > 0:
-        previous_months = tuple(
-            period
-            for period in completed_months
-            if period.start_date < current_month_start
-        )[-month_count:]
-    current_month: UsagePeriod = UsagePeriod(
-        name=f"{_format_month_name(current_month_start)} estimated",
-        start_date=current_month_start,
-        end_date=_next_month_start(current_month_start),
+        previous_months = api_months[:-1][-month_count:]
+    estimated_current_month: UsagePeriod = UsagePeriod(
+        name=f"{current_month.name} estimated",
+        start_date=current_month.start_date,
+        end_date=current_month.end_date,
         total_bytes=estimated_current_month_bytes,
         is_estimated=True,
     )
-    return (*previous_months, current_month)
+    return (*previous_months, current_month, estimated_current_month)
 
 
 def _parse_total_column(line: str) -> int:

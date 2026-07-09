@@ -6,13 +6,15 @@ The app is designed to run on macOS or Linux, call the OPNsense vnStat REST
 endpoints with Basic Auth API credentials, and report:
 
 - the configured number of previous completed days plus the current day
-- the configured number of previous months plus the current month estimate
+- the configured number of previous months plus the current month usage so far
+  and its estimate
 
 The daily API response provides the last 30 daily rows and a current-day
 estimate. WANUsage reports the actual daily rows and uses the available daily
-history for daily alerts. The monthly API response provides 12 completed months
-and the current month estimate, which is used for the monthly report and monthly
-alerts.
+history for daily alerts. The monthly API response provides vnStat month rows
+using the router's configured month-rotate day. Its final month row is the
+current rotated month usage so far, and its `estimated` row is the estimate for
+that same rotated month.
 
 ## Local Configuration
 
@@ -53,8 +55,8 @@ Short options are also available: `-c`, `-d`, `-D`, `-e`, `-h`, `-m`, `-q`, and
 usage section.
 
 `--months` accepts values from -1 to 12 and overrides `vnstat.default_months`
-from `wanusage.toml`. Use `0` to show only the current month estimate, or `-1`
-to hide the monthly usage section.
+from `wanusage.toml`. Use `0` to show only the current rotated month usage and
+estimate, or `-1` to hide the monthly usage section.
 
 `--email` sends the report to `email.to_address` from `wanusage.toml`.
 Authenticated SMTP requires `email.use_tls = true`; the SMTP server certificate
@@ -74,8 +76,8 @@ API, independently of the `--days` report setting. State updates are locked and
 written atomically to prevent duplicate alerts from overlapping cron runs.
 
 `vnstat.monthly_alert_gb` accepts values from 0 to 9999. A value of `0` disables
-monthly alerts. When the estimated current month usage exceeds a positive
-threshold, the app sends one email per month with subject
+monthly alerts. When the estimated current rotated month usage exceeds a
+positive threshold, the app sends one email per rotated month with subject
 `monthly high usage alert`. The alerted month is stored in
 `<config-name>-monthly-alert-state.txt` next to the config file.
 
