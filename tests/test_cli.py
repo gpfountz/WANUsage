@@ -265,8 +265,8 @@ def test_days_rejects_values_outside_range(value: str) -> None:
     assert error.value.code == 2
 
 
-@pytest.mark.parametrize("value", ["-1", "0", "12"])
-def test_months_accepts_values_from_negative_1_to_12(value: str) -> None:
+@pytest.mark.parametrize("value", ["-1", "0", "11"])
+def test_months_accepts_values_from_negative_1_to_11(value: str) -> None:
     parser: argparse.ArgumentParser = build_parser()
 
     args: argparse.Namespace = parser.parse_args(["--months", value])
@@ -282,7 +282,7 @@ def test_short_months_flag_accepts_value() -> None:
     assert args.months == 3
 
 
-@pytest.mark.parametrize("value", ["-2", "13"])
+@pytest.mark.parametrize("value", ["-2", "12"])
 def test_months_rejects_values_outside_range(value: str) -> None:
     parser: argparse.ArgumentParser = build_parser()
 

@@ -111,14 +111,16 @@ class VnstatClient:
         day_count: int = 7,
         month_count: int = 1,
     ) -> UsageReport:
-        """Fetch daily and monthly API data and build a report for ``today``.
+        """Fetch daily and monthly API data and build a report.
 
         ``day_count`` controls displayed daily history: ``-1`` omits daily rows,
         ``0`` includes only today, and a positive value includes that many
         previous days plus today. ``month_count`` controls how many monthly
         rows before the current vnStat rotated month are shown; the current
         month usage-so-far and its estimate are always shown when monthly
-        reporting is enabled.
+        reporting is enabled. When daily reporting is enabled and API data is
+        available, its most recent date becomes the report date; ``today`` is
+        the fallback for reports without displayed daily data.
         """
 
         daily_usage: tuple[DailyUsage, ...] = ()
@@ -133,6 +135,10 @@ class VnstatClient:
                     self.config.daily_url,
                 )
             )
+
+        report_date: date = today
+        if day_count >= 0 and daily_usage:
+            report_date = daily_usage[-1].usage_date
 
         monthly_usage: tuple[UsagePeriod, ...] = ()
         current_month_start: date = today.replace(day=1)
@@ -159,10 +165,10 @@ class VnstatClient:
 
         sorted_daily_usage: tuple[DailyUsage, ...] = sort_daily_usage(list(daily_usage))
         return UsageReport(
-            generated_for=today,
+            generated_for=report_date,
             day_count=day_count,
             month_count=month_count,
-            daily_usage=_select_report_daily_usage(sorted_daily_usage, today, day_count),
+            daily_usage=_select_report_daily_usage(sorted_daily_usage, report_date, day_count),
             daily_alert_usage=sorted_daily_usage if self.config.daily_alert_gb > 0 else (),
             monthly_usage=monthly_usage,
             current_month_start=current_month_start,
@@ -299,7 +305,11 @@ def _parse_total_column(line: str) -> int:
 def _parse_byte_value(value: str) -> int:
     """Convert a vnStat byte value with binary units to bytes."""
 
-    amount_text, unit = value.split()
+    parts: list[str] = value.split()
+    if len(parts) != 2:
+        raise VnstatApiError(f"Invalid vnStat usage value: {value}")
+
+    amount_text, unit = parts
     if unit not in BYTES_PER_UNIT:
         raise VnstatApiError(f"Unsupported vnStat usage unit: {unit}")
 
@@ -307,6 +317,9 @@ def _parse_byte_value(value: str) -> int:
         amount: Decimal = Decimal(amount_text)
     except InvalidOperation as error:
         raise VnstatApiError(f"Invalid vnStat usage value: {value}") from error
+
+    if not amount.is_finite() or amount < 0:
+        raise VnstatApiError(f"Invalid vnStat usage value: {value}")
 
     return int(amount * BYTES_PER_UNIT[unit])
 

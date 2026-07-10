@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "wanusage"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Report WAN usage from the OPNsense vnStat API."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,6 +25,9 @@ wanusage = "wanusage.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/wanusage"]
+
+[tool.hatch.version]
+path = "src/wanusage/__init__.py"
 
 [tool.ruff]
 line-length = 100

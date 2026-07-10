@@ -99,6 +99,26 @@ def test_load_config_defaults_default_months_to_one(tmp_path: Path) -> None:
     assert config.vnstat.default_months == 1
 
 
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("daily_url", '"http://router.example.com/api/vnstat/service/daily/"'),
+        ("monthly_url", '"https://key:secret@router.example.com/api/vnstat/service/monthly/"'),
+        ("daily_url", '"https:///api/vnstat/service/daily/"'),
+    ],
+)
+def test_load_config_rejects_insecure_or_invalid_api_urls(
+    tmp_path: Path,
+    key: str,
+    value: str,
+) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_path.write_text(_config_text(**{key: value}), encoding="utf-8")
+
+    with pytest.raises(ConfigError, match=key):
+        load_config(config_path)
+
+
 def test_load_config_rejects_missing_required_section(tmp_path: Path) -> None:
     config_path: Path = tmp_path / "wanusage.toml"
     config_path.write_text("[email]\nsmtp_host = 'smtp.example.com'\n", encoding="utf-8")
@@ -159,7 +179,7 @@ def test_load_config_rejects_boolean_integer_values(
     ("key", "value"),
     [
         ("default_days", "30"),
-        ("default_months", "13"),
+        ("default_months", "12"),
         ("daily_alert_gb", "1000"),
         ("monthly_alert_gb", "10000"),
     ],

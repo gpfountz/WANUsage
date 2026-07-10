@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from wanusage.config import VnstatConfig
-from wanusage.vnstat import VnstatApiError, VnstatClient
+from wanusage.vnstat import VnstatApiError, VnstatClient, _parse_byte_value
 
 DAILY_RESPONSE: str = """
  igc0  /  daily
@@ -122,6 +122,15 @@ def test_zero_months_includes_current_month_and_estimate() -> None:
     ]
 
 
+def test_daily_response_date_is_used_when_host_and_router_dates_differ() -> None:
+    client, _json_getter = _client()
+
+    report = client.build_usage_report(date(2026, 7, 10), day_count=0, month_count=-1)
+
+    assert report.generated_for == date(2026, 7, 9)
+    assert [value.usage_date for value in report.daily_usage] == [date(2026, 7, 9)]
+
+
 def test_negative_months_hides_monthly_usage_but_still_supports_monthly_alerts() -> None:
     client, _json_getter = _client()
 
@@ -187,3 +196,9 @@ def test_monthly_response_must_include_at_least_one_month_row() -> None:
 
     with pytest.raises(VnstatApiError, match="month rows"):
         client.build_usage_report(date(2026, 7, 9))
+
+
+@pytest.mark.parametrize("value", ["1 GiB extra", "NaN GiB", "Infinity GiB", "-1 GiB"])
+def test_parse_byte_value_rejects_malformed_or_invalid_values(value: str) -> None:
+    with pytest.raises(VnstatApiError, match="Invalid vnStat usage value"):
+        _parse_byte_value(value)

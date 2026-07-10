@@ -54,7 +54,7 @@ Short options are also available: `-c`, `-d`, `-D`, `-e`, `-h`, `-m`, `-q`, and
 `wanusage.toml`. Use `0` to show only the current day, or `-1` to hide the daily
 usage section.
 
-`--months` accepts values from -1 to 12 and overrides `vnstat.default_months`
+`--months` accepts values from -1 to 11 and overrides `vnstat.default_months`
 from `wanusage.toml`. Use `0` to show only the current rotated month usage and
 estimate, or `-1` to hide the monthly usage section.
 
