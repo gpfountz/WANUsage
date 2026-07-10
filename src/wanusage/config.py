@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from stat import S_IMODE
 from typing import Any
+from urllib.parse import SplitResult, urlsplit
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,7 @@ def load_config(config_path: Path) -> AppConfig:
     """Load and validate an application configuration from a private TOML file.
 
     The file must not grant any permissions to group or other users because it
-    may contain SSH paths and SMTP credentials.
+    may contain API and SMTP credentials.
 
     Raises:
         ConfigError: If the file is missing, insecure, malformed, or contains an
@@ -72,8 +73,8 @@ def load_config(config_path: Path) -> AppConfig:
 
     return AppConfig(
         vnstat=VnstatConfig(
-            daily_url=_required_str(vnstat_section, "daily_url"),
-            monthly_url=_required_str(
+            daily_url=_required_https_url(vnstat_section, "daily_url"),
+            monthly_url=_required_https_url(
                 vnstat_section,
                 "monthly_url",
             ),
@@ -90,7 +91,7 @@ def load_config(config_path: Path) -> AppConfig:
                 "default_months",
                 default=1,
                 minimum=-1,
-                maximum=12,
+                maximum=11,
             ),
             daily_alert_gb=_bounded_int(
                 vnstat_section,
@@ -147,6 +148,31 @@ def _required_str(section: dict[str, Any], key: str) -> str:
     value: Any = section.get(key)
     if not isinstance(value, str) or not value:
         raise ConfigError(f"Missing required string config value: {key}")
+    return value
+
+
+def _required_https_url(section: dict[str, Any], key: str) -> str:
+    """Return a required HTTPS API URL without embedded credentials.
+
+    Basic Auth credentials are sent to this URL, so accepting cleartext HTTP
+    or a URL user-info component could disclose secrets through configuration
+    mistakes or error output.
+    """
+
+    value: str = _required_str(section, key)
+    try:
+        parsed_url: SplitResult = urlsplit(value)
+        _ = parsed_url.port
+    except ValueError as error:
+        raise ConfigError(f"Config value must be a valid HTTPS URL: {key}") from error
+
+    if (
+        parsed_url.scheme != "https"
+        or not parsed_url.hostname
+        or parsed_url.username is not None
+        or parsed_url.password is not None
+    ):
+        raise ConfigError(f"Config value must be an HTTPS URL without credentials: {key}")
     return value
 
 

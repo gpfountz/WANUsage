@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         prog="wanusage",
-        description="Report WAN usage from an OPNsense vnStat database.",
+        description="Report WAN usage from the OPNsense vnStat API.",
         add_help=False,
     )
     parser.add_argument(
@@ -71,9 +71,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-m",
         "--months",
-        type=_bounded_int("months", minimum=-1, maximum=12),
+        type=_bounded_int("months", minimum=-1, maximum=11),
         help=(
-            "Number of previous months to show, from -1 to 12. "
+            "Number of previous months to show, from -1 to 11. "
             "Defaults to vnstat.default_months from the config file. "
             "Use 0 for current month usage and estimate only, or -1 to hide monthly usage."
         ),

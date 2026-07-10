@@ -1,4 +1,4 @@
-"""WAN usage reporting from an OPNsense vnStat database."""
+"""WAN usage reporting from the OPNsense vnStat API."""
 
 __all__ = ["__version__"]
 
