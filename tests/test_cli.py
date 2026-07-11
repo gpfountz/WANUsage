@@ -9,6 +9,7 @@ import pytest
 from wanusage import __version__
 from wanusage.cli import _handle_report, build_parser
 from wanusage.config import (
+    ApiCredentials,
     AppConfig,
     EmailConfig,
     VnstatConfig,
@@ -44,8 +45,6 @@ def _app_config(*, daily_alert_gb: int, monthly_alert_gb: int) -> AppConfig:
         vnstat=VnstatConfig(
             daily_url="https://router.example.com/api/vnstat/service/daily/",
             monthly_url="https://router.example.com/api/vnstat/service/monthly/",
-            key="api-key",
-            secret="api-secret",
             default_days=7,
             default_months=1,
             daily_alert_gb=daily_alert_gb,
@@ -60,6 +59,7 @@ def _app_config(*, daily_alert_gb: int, monthly_alert_gb: int) -> AppConfig:
             to_address="recipient@example.com",
             use_tls=True,
         ),
+        api_credentials=ApiCredentials(key="api-key", secret="api-secret"),
     )
 
 

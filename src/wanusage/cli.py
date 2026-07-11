@@ -113,6 +113,7 @@ def _handle_report(args: argparse.Namespace) -> None:
         vnstat_client = VnstatClient(
             json_getter=UrllibJsonGetter(),
             config=app_config.vnstat,
+            credentials=app_config.api_credentials,
         )
         report_date: date = date.today()
         report = vnstat_client.build_usage_report(
