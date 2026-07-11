@@ -17,7 +17,7 @@ config:
 request:
   auth:
     type: basic
-    username: [api key from ]
+    username: [api key from opnsense]
     password: [api secret from opnsense]
   variables:
     - name: ""
