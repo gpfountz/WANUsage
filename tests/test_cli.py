@@ -105,7 +105,7 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     output: str = capsys.readouterr().out
     assert error.value.code == 0
     assert "--config" in output
-    assert "Defaults to wanusage-dev.toml in" in output
+    assert "Defaults to wanusage.toml in" in output
     assert "current directory." in output
     assert "--debug" in output
     assert "--days" in output
@@ -163,12 +163,12 @@ def test_short_version_flag_prints_version(capsys: pytest.CaptureFixture[str]) -
     assert output.strip() == f"wanusage {__version__}"
 
 
-def test_config_defaults_to_current_directory_wanusage_dev_toml() -> None:
+def test_config_defaults_to_current_directory_wanusage_toml() -> None:
     parser: argparse.ArgumentParser = build_parser()
 
     args: argparse.Namespace = parser.parse_args([])
 
-    assert args.config == "wanusage-dev.toml"
+    assert args.config == "wanusage.toml"
     assert args.days is None
     assert args.email is False
     assert args.months is None
