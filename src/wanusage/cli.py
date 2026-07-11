@@ -34,10 +34,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-c",
         "--config",
-        default="wanusage-dev.toml",
+        default="wanusage.toml",
         help=(
             "Optional path to local TOML config containing router and email settings. "
-            "Defaults to wanusage-dev.toml in the current directory."
+            "Defaults to wanusage.toml in the current directory."
         ),
     )
     parser.add_argument(

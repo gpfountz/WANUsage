@@ -31,6 +31,9 @@ Git because it contains machine-specific SMTP settings. WANUsage rejects config
 files that are readable or writable by group or other users. OPNsense and SMTP
 authentication credentials are kept separately.
 
+WANUsage uses `wanusage.toml` from the current directory when `--config` is not
+specified. Use `--config wanusage-dev.toml` to run with the dev configuration.
+
 Set `vnstat.daily_url` and `vnstat.monthly_url` to the OPNsense vnStat daily and
 monthly API endpoints.
 
