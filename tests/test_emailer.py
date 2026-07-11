@@ -6,7 +6,7 @@ from email.message import EmailMessage
 
 import pytest
 
-from wanusage.config import EmailConfig
+from wanusage.config import EmailConfig, SmtpCredentials
 from wanusage.emailer import EmailError, EmailSender
 
 
@@ -53,12 +53,11 @@ def test_send_report_uses_smtp_config(monkeypatch: pytest.MonkeyPatch) -> None:
         EmailConfig(
             smtp_host="smtp.example.com",
             smtp_port=587,
-            username="mailer",
-            password="secret",
             from_address="wan@example.com",
             to_address="recipient@example.com",
             use_tls=True,
-        )
+        ),
+        SmtpCredentials(username="mailer", password="secret"),
     )
 
     sender.send_report(
@@ -86,12 +85,11 @@ def test_send_report_rejects_missing_smtp_host() -> None:
         EmailConfig(
             smtp_host="",
             smtp_port=587,
-            username="",
-            password="",
             from_address="wan@example.com",
             to_address="recipient@example.com",
             use_tls=True,
-        )
+        ),
+        SmtpCredentials(username="", password=""),
     )
 
     with pytest.raises(EmailError, match="email.smtp_host"):
@@ -107,12 +105,11 @@ def test_send_report_without_username_skips_login(monkeypatch: pytest.MonkeyPatc
         EmailConfig(
             smtp_host="smtp.example.com",
             smtp_port=25,
-            username="",
-            password="",
             from_address="wan@example.com",
             to_address="recipient@example.com",
             use_tls=False,
-        )
+        ),
+        SmtpCredentials(username="", password=""),
     )
 
     sender.send_report(
@@ -130,12 +127,11 @@ def test_send_report_rejects_authenticated_smtp_without_tls() -> None:
         EmailConfig(
             smtp_host="smtp.example.com",
             smtp_port=25,
-            username="mailer",
-            password="secret",
             from_address="wan@example.com",
             to_address="recipient@example.com",
             use_tls=False,
-        )
+        ),
+        SmtpCredentials(username="mailer", password="secret"),
     )
 
     with pytest.raises(EmailError, match="Authenticated SMTP requires"):
@@ -150,12 +146,11 @@ def test_send_report_rejects_missing_to_address() -> None:
         EmailConfig(
             smtp_host="smtp.example.com",
             smtp_port=587,
-            username="",
-            password="",
             from_address="wan@example.com",
             to_address="",
             use_tls=True,
-        )
+        ),
+        SmtpCredentials(username="", password=""),
     )
 
     with pytest.raises(EmailError, match="email.to_address"):

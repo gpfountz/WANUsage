@@ -12,6 +12,7 @@ from wanusage.config import (
     ApiCredentials,
     AppConfig,
     EmailConfig,
+    SmtpCredentials,
     VnstatConfig,
 )
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
@@ -21,7 +22,7 @@ from wanusage.vnstat import VnstatClient
 class RecordingEmailSender:
     sent_messages: list[tuple[str, str]] = []
 
-    def __init__(self, _config: EmailConfig) -> None:
+    def __init__(self, _config: EmailConfig, _credentials: SmtpCredentials) -> None:
         pass
 
     def send_report(self, subject: str, body: str) -> None:
@@ -53,13 +54,12 @@ def _app_config(*, daily_alert_gb: int, monthly_alert_gb: int) -> AppConfig:
         email=EmailConfig(
             smtp_host="smtp.example.com",
             smtp_port=587,
-            username="mailer",
-            password="secret",
             from_address="wan@example.com",
             to_address="recipient@example.com",
             use_tls=True,
         ),
         api_credentials=ApiCredentials(key="api-key", secret="api-secret"),
+        smtp_credentials=SmtpCredentials(username="mailer", password="secret"),
     )
 
 
@@ -105,7 +105,7 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     output: str = capsys.readouterr().out
     assert error.value.code == 0
     assert "--config" in output
-    assert "Defaults to wanusage.toml in" in output
+    assert "Defaults to wanusage-dev.toml in" in output
     assert "current directory." in output
     assert "--debug" in output
     assert "--days" in output
@@ -163,12 +163,12 @@ def test_short_version_flag_prints_version(capsys: pytest.CaptureFixture[str]) -
     assert output.strip() == f"wanusage {__version__}"
 
 
-def test_config_defaults_to_current_directory_wanusage_toml() -> None:
+def test_config_defaults_to_current_directory_wanusage_dev_toml() -> None:
     parser: argparse.ArgumentParser = build_parser()
 
     args: argparse.Namespace = parser.parse_args([])
 
-    assert args.config == "wanusage.toml"
+    assert args.config == "wanusage-dev.toml"
     assert args.days is None
     assert args.email is False
     assert args.months is None

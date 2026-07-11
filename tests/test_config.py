@@ -34,7 +34,10 @@ def write_private_test_configs(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(autouse=True)
 def use_private_test_env_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     env_path: Path = tmp_path / ".env"
-    env_path.write_text("key=api-key\nsecret=api-secret\n", encoding="utf-8")
+    env_path.write_text(
+        "key=api-key\nsecret=api-secret\nsmtp_username=mailer\nsmtp_password=secret\n",
+        encoding="utf-8",
+    )
     env_path.chmod(0o600)
     monkeypatch.setattr("wanusage.config.default_env_path", lambda: env_path)
     return env_path
@@ -63,8 +66,6 @@ monthly_alert_gb = {values["monthly_alert_gb"]}
 [email]
 smtp_host = "smtp.example.com"
 smtp_port = {values["smtp_port"]}
-username = "mailer"
-password = "secret"
 from_address = "wan@example.com"
 to_address = "recipient@example.com"
 """
@@ -82,6 +83,8 @@ def test_load_config_reads_typed_values(tmp_path: Path) -> None:
     )
     assert config.api_credentials.key == "api-key"
     assert config.api_credentials.secret == "api-secret"
+    assert config.smtp_credentials.username == "mailer"
+    assert config.smtp_credentials.password == "secret"
     assert config.vnstat.default_days == 7
     assert config.vnstat.default_months == 1
     assert config.vnstat.daily_alert_gb == 50
@@ -91,6 +94,7 @@ def test_load_config_reads_typed_values(tmp_path: Path) -> None:
     assert config.email.to_address == "recipient@example.com"
     assert config.email.use_tls is True
     assert "api-secret" not in repr(config.api_credentials)
+    assert "secret" not in repr(config.smtp_credentials)
     assert "secret" not in repr(config.email)
 
 
@@ -120,6 +124,18 @@ def test_load_config_rejects_legacy_api_credentials_in_toml(tmp_path: Path) -> N
         load_config(config_path)
 
 
+def test_load_config_rejects_legacy_smtp_credentials_in_toml(tmp_path: Path) -> None:
+    config_path: Path = tmp_path / "wanusage.toml"
+    config_text: str = _config_text().replace(
+        'from_address = "wan@example.com"',
+        'username = "mailer"\npassword = "secret"\nfrom_address = "wan@example.com"',
+    )
+    config_path.write_text(config_text, encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="Move email"):
+        load_config(config_path)
+
+
 @pytest.mark.parametrize(
     "env_text",
     [
@@ -127,6 +143,7 @@ def test_load_config_rejects_legacy_api_credentials_in_toml(tmp_path: Path) -> N
         "key=api-key\nsecret=\n",
         "key=api-key\nkey=other\nsecret=api-secret\n",
         "username=api-key\nsecret=api-secret\n",
+        "key=api-key\nsecret=api-secret\nsmtp_username=mailer\n",
     ],
 )
 def test_load_config_rejects_invalid_credentials_file(

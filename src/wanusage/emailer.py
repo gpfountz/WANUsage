@@ -5,7 +5,7 @@ import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
 
-from wanusage.config import EmailConfig
+from wanusage.config import EmailConfig, SmtpCredentials
 
 
 class EmailError(RuntimeError):
@@ -17,6 +17,7 @@ class EmailSender:
     """Send plain-text usage reports through a configured SMTP server."""
 
     config: EmailConfig
+    credentials: SmtpCredentials
     timeout_seconds: int = 30
 
     def send_report(self, subject: str, body: str) -> None:
@@ -45,8 +46,8 @@ class EmailSender:
             ) as smtp:
                 if self.config.use_tls:
                     smtp.starttls(context=ssl.create_default_context())
-                if self.config.username:
-                    smtp.login(self.config.username, self.config.password)
+                if self.credentials.username:
+                    smtp.login(self.credentials.username, self.credentials.password)
                 smtp.send_message(message)
         except smtplib.SMTPException as error:
             raise EmailError(f"Could not send email: {error}") from error
@@ -63,11 +64,11 @@ class EmailSender:
             missing_values.append("email.from_address")
         if not self.config.to_address:
             missing_values.append("email.to_address")
-        if self.config.username and not self.config.password:
-            missing_values.append("email.password")
+        if self.credentials.username and not self.credentials.password:
+            missing_values.append("smtp_password")
 
         if missing_values:
             joined_values: str = ", ".join(missing_values)
             raise EmailError(f"Missing email config value(s): {joined_values}")
-        if self.config.username and not self.config.use_tls:
+        if self.credentials.username and not self.config.use_tls:
             raise EmailError("Authenticated SMTP requires email.use_tls = true")
