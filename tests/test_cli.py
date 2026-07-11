@@ -44,8 +44,9 @@ class RecordingJsonGetter:
 def _app_config(*, daily_alert_gb: int, monthly_alert_gb: int) -> AppConfig:
     return AppConfig(
         vnstat=VnstatConfig(
-            daily_url="https://router.example.com/api/vnstat/service/daily/",
-            monthly_url="https://router.example.com/api/vnstat/service/monthly/",
+            base_url="https://router.example.com",
+            daily_url_path="/api/vnstat/service/daily",
+            monthly_url_path="/api/vnstat/service/monthly",
             default_days=7,
             default_months=1,
             daily_alert_gb=daily_alert_gb,

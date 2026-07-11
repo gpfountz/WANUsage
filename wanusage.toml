@@ -1,6 +1,7 @@
 [vnstat]
-daily_url = "https://opnsense.local/api/vnstat/service/daily/"
-monthly_url = "https://opnsense.local/api/vnstat/service/monthly/"
+base_url = "https://opnsense.local"
+daily_url_path = "/api/vnstat/service/daily"
+monthly_url_path = "/api/vnstat/service/monthly"
 default_days = 7
 default_months = 1
 daily_alert_gb = 0

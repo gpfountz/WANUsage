@@ -5,19 +5,32 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from stat import S_IMODE
 from typing import Any
-from urllib.parse import SplitResult, urlsplit
+from urllib.parse import SplitResult, urljoin, urlsplit
 
 
 @dataclass(frozen=True)
 class VnstatConfig:
     """vnStat API, reporting, and alert settings."""
 
-    daily_url: str
-    monthly_url: str
+    base_url: str
+    daily_url_path: str
+    monthly_url_path: str
     default_days: int
     default_months: int
     daily_alert_gb: int
     monthly_alert_gb: int
+
+    @property
+    def daily_url(self) -> str:
+        """Return the fully qualified vnStat daily endpoint URL."""
+
+        return _api_endpoint_url(self.base_url, self.daily_url_path)
+
+    @property
+    def monthly_url(self) -> str:
+        """Return the fully qualified vnStat monthly endpoint URL."""
+
+        return _api_endpoint_url(self.base_url, self.monthly_url_path)
 
 
 @dataclass(frozen=True)
@@ -102,10 +115,11 @@ def load_config(config_path: Path) -> AppConfig:
 
     return AppConfig(
         vnstat=VnstatConfig(
-            daily_url=_required_https_url(vnstat_section, "daily_url"),
-            monthly_url=_required_https_url(
+            base_url=_required_https_base_url(vnstat_section, "base_url"),
+            daily_url_path=_required_api_path(vnstat_section, "daily_url_path"),
+            monthly_url_path=_required_api_path(
                 vnstat_section,
-                "monthly_url",
+                "monthly_url_path",
             ),
             default_days=_bounded_int(
                 vnstat_section,
@@ -280,8 +294,8 @@ def _required_str(section: dict[str, Any], key: str) -> str:
     return value
 
 
-def _required_https_url(section: dict[str, Any], key: str) -> str:
-    """Return a required HTTPS API URL without embedded credentials.
+def _required_https_base_url(section: dict[str, Any], key: str) -> str:
+    """Return a required HTTPS origin URL without embedded credentials or a path.
 
     Basic Auth credentials are sent to this URL, so accepting cleartext HTTP
     or a URL user-info component could disclose secrets through configuration
@@ -300,9 +314,36 @@ def _required_https_url(section: dict[str, Any], key: str) -> str:
         or not parsed_url.hostname
         or parsed_url.username is not None
         or parsed_url.password is not None
+        or parsed_url.query
+        or parsed_url.fragment
+        or parsed_url.path not in {"", "/"}
     ):
         raise ConfigError(f"Config value must be an HTTPS URL without credentials: {key}")
+    return value.rstrip("/")
+
+
+def _required_api_path(section: dict[str, Any], key: str) -> str:
+    """Return a required absolute API path that cannot replace the configured base URL."""
+
+    value: str = _required_str(section, key)
+    parsed_url: SplitResult = urlsplit(value)
+    if (
+        not value.startswith("/")
+        or value.startswith("//")
+        or parsed_url.scheme
+        or parsed_url.netloc
+        or parsed_url.query
+        or parsed_url.fragment
+        or ".." in parsed_url.path.split("/")
+    ):
+        raise ConfigError(f"Config value must be an absolute API path: {key}")
     return value
+
+
+def _api_endpoint_url(base_url: str, path: str) -> str:
+    """Join a normalized HTTPS origin and validated absolute API path."""
+
+    return urljoin(f"{base_url}/", path)
 
 
 def _optional_str(section: dict[str, Any], key: str) -> str:

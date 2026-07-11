@@ -45,8 +45,9 @@ class FakeJsonGetter:
 
 def _config(*, daily_alert_gb: int = 50, monthly_alert_gb: int = 1000) -> VnstatConfig:
     return VnstatConfig(
-        daily_url="https://router.example.com/api/vnstat/service/daily/",
-        monthly_url="https://router.example.com/api/vnstat/service/monthly/",
+        base_url="https://router.example.com",
+        daily_url_path="/api/vnstat/service/daily",
+        monthly_url_path="/api/vnstat/service/monthly",
         default_days=7,
         default_months=1,
         daily_alert_gb=daily_alert_gb,
@@ -57,10 +58,10 @@ def _config(*, daily_alert_gb: int = 50, monthly_alert_gb: int = 1000) -> Vnstat
 def _client(config: VnstatConfig | None = None) -> tuple[VnstatClient, FakeJsonGetter]:
     json_getter = FakeJsonGetter(
         payloads_by_url={
-            "https://router.example.com/api/vnstat/service/daily/": {
+            "https://router.example.com/api/vnstat/service/daily": {
                 "response": DAILY_RESPONSE
             },
-            "https://router.example.com/api/vnstat/service/monthly/": {
+            "https://router.example.com/api/vnstat/service/monthly": {
                 "response": MONTHLY_RESPONSE
             },
         }
@@ -104,12 +105,12 @@ def test_build_usage_report_uses_daily_and_monthly_api_responses() -> None:
     assert report.estimated_current_month_bytes == int(937.29 * 1024**3)
     assert json_getter.requests == [
         (
-            "https://router.example.com/api/vnstat/service/daily/",
+            "https://router.example.com/api/vnstat/service/daily",
             "api-key",
             "api-secret",
         ),
         (
-            "https://router.example.com/api/vnstat/service/monthly/",
+            "https://router.example.com/api/vnstat/service/monthly",
             "api-key",
             "api-secret",
         ),
@@ -172,10 +173,10 @@ def test_negative_report_days_skips_daily_api_when_alerts_are_disabled() -> None
 def test_monthly_response_must_include_estimate() -> None:
     json_getter = FakeJsonGetter(
         payloads_by_url={
-            "https://router.example.com/api/vnstat/service/daily/": {
+                "https://router.example.com/api/vnstat/service/daily": {
                 "response": DAILY_RESPONSE
             },
-            "https://router.example.com/api/vnstat/service/monthly/": {
+                "https://router.example.com/api/vnstat/service/monthly": {
                 "response": "Jun '26 1.00 GiB | 1.00 GiB | 2.00 GiB |"
             },
         }
@@ -193,10 +194,10 @@ def test_monthly_response_must_include_estimate() -> None:
 def test_monthly_response_must_include_at_least_one_month_row() -> None:
     json_getter = FakeJsonGetter(
         payloads_by_url={
-            "https://router.example.com/api/vnstat/service/daily/": {
+                "https://router.example.com/api/vnstat/service/daily": {
                 "response": DAILY_RESPONSE
             },
-            "https://router.example.com/api/vnstat/service/monthly/": {
+                "https://router.example.com/api/vnstat/service/monthly": {
                 "response": "estimated 1.00 GiB | 1.00 GiB | 2.00 GiB |"
             },
         }

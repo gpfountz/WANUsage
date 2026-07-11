@@ -45,8 +45,9 @@ def use_private_test_env_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
 def _config_text(**overrides: str) -> str:
     values: dict[str, str] = {
-        "daily_url": '"https://router.example.com/api/vnstat/service/daily/"',
-        "monthly_url": '"https://router.example.com/api/vnstat/service/monthly/"',
+        "base_url": '"https://router.example.com"',
+        "daily_url_path": '"/api/vnstat/service/daily"',
+        "monthly_url_path": '"/api/vnstat/service/monthly"',
         "default_days": "7",
         "default_months": "1",
         "daily_alert_gb": "50",
@@ -56,8 +57,9 @@ def _config_text(**overrides: str) -> str:
     values.update(overrides)
     return f"""
 [vnstat]
-daily_url = {values["daily_url"]}
-monthly_url = {values["monthly_url"]}
+base_url = {values["base_url"]}
+daily_url_path = {values["daily_url_path"]}
+monthly_url_path = {values["monthly_url_path"]}
 default_days = {values["default_days"]}
 default_months = {values["default_months"]}
 daily_alert_gb = {values["daily_alert_gb"]}
@@ -77,10 +79,11 @@ def test_load_config_reads_typed_values(tmp_path: Path) -> None:
 
     config: AppConfig = load_config(config_path)
 
-    assert config.vnstat.daily_url == "https://router.example.com/api/vnstat/service/daily/"
-    assert config.vnstat.monthly_url == (
-        "https://router.example.com/api/vnstat/service/monthly/"
-    )
+    assert config.vnstat.base_url == "https://router.example.com"
+    assert config.vnstat.daily_url_path == "/api/vnstat/service/daily"
+    assert config.vnstat.monthly_url_path == "/api/vnstat/service/monthly"
+    assert config.vnstat.daily_url == "https://router.example.com/api/vnstat/service/daily"
+    assert config.vnstat.monthly_url == "https://router.example.com/api/vnstat/service/monthly"
     assert config.api_credentials.key == "api-key"
     assert config.api_credentials.secret == "api-secret"
     assert config.smtp_credentials.username == "mailer"
@@ -179,9 +182,12 @@ def test_load_config_rejects_group_readable_credentials_file(
 @pytest.mark.parametrize(
     ("key", "value"),
     [
-        ("daily_url", '"http://router.example.com/api/vnstat/service/daily/"'),
-        ("monthly_url", '"https://key:secret@router.example.com/api/vnstat/service/monthly/"'),
-        ("daily_url", '"https:///api/vnstat/service/daily/"'),
+        ("base_url", '"http://router.example.com"'),
+        ("base_url", '"https://key:secret@router.example.com"'),
+        ("base_url", '"https:///api"'),
+        ("base_url", '"https://router.example.com/api"'),
+        ("daily_url_path", '"vnstat/service/daily"'),
+        ("monthly_url_path", '"https://router.example.com/api/vnstat/service/monthly"'),
     ],
 )
 def test_load_config_rejects_insecure_or_invalid_api_urls(
