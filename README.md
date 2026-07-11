@@ -22,10 +22,10 @@ Install the example with owner-only permissions and edit it for the machine
 running the command:
 
 ```bash
-install -m 600 wanusage.example.toml wanusage.toml
+sudo chmod 600 wanusage.toml
 ```
 
-`wanusage.toml` is ignored by Git because it can contain SMTP credentials.
+`wanusage-dev.toml` is ignored by Git because it can contain SMTP credentials.
 WANUsage rejects config files that are readable or writable by group or other
 users. It contains SMTP settings; OPNsense API credentials are kept separately.
 
@@ -102,7 +102,7 @@ positive threshold, the app sends one email per rotated month with subject
 For local development without installing the console script globally:
 
 ```bash
-.venv/bin/wanusage --config wanusage.toml
+.venv/bin/wanusage --config wanusage-dev.toml
 ```
 
 Example cron entry for a daily email report shortly after midnight:
