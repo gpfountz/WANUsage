@@ -26,8 +26,6 @@ class EmailConfig:
 
     smtp_host: str
     smtp_port: int
-    username: str
-    password: str = field(repr=False)
     from_address: str
     to_address: str
     use_tls: bool
@@ -42,12 +40,29 @@ class ApiCredentials:
 
 
 @dataclass(frozen=True)
+class SmtpCredentials:
+    """Optional SMTP authentication credentials loaded from the private environment file."""
+
+    username: str
+    password: str = field(repr=False)
+
+
+@dataclass(frozen=True)
+class EnvironmentCredentials:
+    """All credentials loaded from the private environment file."""
+
+    api: ApiCredentials
+    smtp: SmtpCredentials
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """The complete validated application configuration."""
 
     vnstat: VnstatConfig
     email: EmailConfig
     api_credentials: ApiCredentials
+    smtp_credentials: SmtpCredentials
 
 
 class ConfigError(ValueError):
@@ -61,10 +76,11 @@ def default_env_path() -> Path:
 
 
 def load_config(config_path: Path) -> AppConfig:
-    """Load and validate TOML settings and private API credentials.
+    """Load and validate TOML settings and private environment credentials.
 
-    The TOML file holds SMTP credentials and the separate ``.env`` file holds
-    OPNsense API credentials. Both files must be private to their owner.
+    The TOML file holds router and SMTP transport settings. The separate
+    ``.env`` file holds OPNsense and SMTP authentication credentials. Both
+    files must be private to their owner.
 
     Raises:
         ConfigError: If the file is missing, insecure, malformed, or contains an
@@ -79,6 +95,10 @@ def load_config(config_path: Path) -> AppConfig:
     vnstat_section: dict[str, Any] = _required_section(raw_config, "vnstat")
     email_section: dict[str, Any] = _optional_section(raw_config, "email")
     _reject_legacy_api_credentials(vnstat_section)
+    _reject_legacy_smtp_credentials(email_section)
+    environment_credentials: EnvironmentCredentials = load_environment_credentials(
+        default_env_path()
+    )
 
     return AppConfig(
         vnstat=VnstatConfig(
@@ -122,21 +142,22 @@ def load_config(config_path: Path) -> AppConfig:
                 minimum=1,
                 maximum=65535,
             ),
-            username=_optional_str(email_section, "username"),
-            password=_optional_str(email_section, "password"),
             from_address=_optional_str(email_section, "from_address"),
             to_address=_optional_str(email_section, "to_address"),
             use_tls=_optional_bool(email_section, "use_tls", default=True),
         ),
-        api_credentials=load_api_credentials(default_env_path()),
+        api_credentials=environment_credentials.api,
+        smtp_credentials=environment_credentials.smtp,
     )
 
 
-def load_api_credentials(env_path: Path) -> ApiCredentials:
-    """Load the required OPNsense credentials from a simple private ``.env`` file.
+def load_environment_credentials(env_path: Path) -> EnvironmentCredentials:
+    """Load OPNsense and optional SMTP credentials from a private ``.env`` file.
 
     The file supports blank lines and whole-line comments. It must define only
-    nonempty ``key`` and ``secret`` assignments, each exactly once.
+    nonempty recognized assignments, each at most once. ``key`` and ``secret``
+    are required. ``smtp_username`` and ``smtp_password`` are optional, but
+    must be supplied together when SMTP authentication is used.
     """
 
     _validate_private_file(env_path, "Credentials file")
@@ -148,7 +169,7 @@ def load_api_credentials(env_path: Path) -> ApiCredentials:
             continue
 
         name, separator, value = line.partition("=")
-        if not separator or name not in {"key", "secret"}:
+        if not separator or name not in {"key", "secret", "smtp_username", "smtp_password"}:
             raise ConfigError(
                 f"Credentials file contains an invalid entry on line {line_number}: {env_path}"
             )
@@ -171,7 +192,24 @@ def load_api_credentials(env_path: Path) -> ApiCredentials:
             f"Credentials file is missing required value(s) {missing_text}: {env_path}"
         )
 
-    return ApiCredentials(key=values["key"], secret=values["secret"])
+    smtp_names: tuple[str, str] = ("smtp_username", "smtp_password")
+    configured_smtp_names: list[str] = [name for name in smtp_names if name in values]
+    if configured_smtp_names and len(configured_smtp_names) != len(smtp_names):
+        missing_smtp_names: list[str] = [
+            name for name in smtp_names if name not in values
+        ]
+        missing_smtp_text: str = ", ".join(missing_smtp_names)
+        raise ConfigError(
+            f"Credentials file is missing required SMTP value(s) {missing_smtp_text}: {env_path}"
+        )
+
+    return EnvironmentCredentials(
+        api=ApiCredentials(key=values["key"], secret=values["secret"]),
+        smtp=SmtpCredentials(
+            username=values.get("smtp_username", ""),
+            password=values.get("smtp_password", ""),
+        ),
+    )
 
 
 def _validate_private_file(path: Path, label: str) -> None:
@@ -193,6 +231,17 @@ def _reject_legacy_api_credentials(vnstat_section: dict[str, Any]) -> None:
         names: str = ", ".join(sorted(legacy_keys))
         raise ConfigError(
             f"Move vnstat {names} to {default_env_path()} and remove it from the config file"
+        )
+
+
+def _reject_legacy_smtp_credentials(email_section: dict[str, Any]) -> None:
+    """Reject SMTP credentials left in TOML after the migration to the ``.env`` file."""
+
+    legacy_keys: set[str] = {"username", "password"} & email_section.keys()
+    if legacy_keys:
+        names: str = ", ".join(sorted(legacy_keys))
+        raise ConfigError(
+            f"Move email {names} to {default_env_path()} and remove it from the config file"
         )
 
 

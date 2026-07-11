@@ -9,8 +9,6 @@ monthly_alert_gb = 0
 [email]
 smtp_host = ""
 smtp_port = 587
-username = ""
-password = ""
 from_address = ""
 to_address = ""
 use_tls = true

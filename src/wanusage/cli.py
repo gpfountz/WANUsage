@@ -34,10 +34,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-c",
         "--config",
-        default="wanusage.toml",
+        default="wanusage-dev.toml",
         help=(
-            "Optional path to local TOML config containing router and credential settings. "
-            "Defaults to wanusage.toml in the current directory."
+            "Optional path to local TOML config containing router and email settings. "
+            "Defaults to wanusage-dev.toml in the current directory."
         ),
     )
     parser.add_argument(
@@ -136,7 +136,7 @@ def _handle_report(args: argparse.Namespace) -> None:
                 alert_date: date | None = alert_decision.alert_date
                 if alert_decision.should_send and alert_date is not None:
                     try:
-                        EmailSender(app_config.email).send_report(
+                        EmailSender(app_config.email, app_config.smtp_credentials).send_report(
                             subject=ALERT_SUBJECT,
                             body=format_daily_alert_report(
                                 report,
@@ -160,7 +160,7 @@ def _handle_report(args: argparse.Namespace) -> None:
                     last_alert_period_start=monthly_alert_store.read_last_alert_date(),
                 ):
                     try:
-                        EmailSender(app_config.email).send_report(
+                        EmailSender(app_config.email, app_config.smtp_credentials).send_report(
                             subject=MONTHLY_ALERT_SUBJECT,
                             body=formatted_report,
                         )
@@ -170,7 +170,7 @@ def _handle_report(args: argparse.Namespace) -> None:
 
         if args.email:
             try:
-                EmailSender(app_config.email).send_report(
+                EmailSender(app_config.email, app_config.smtp_credentials).send_report(
                     subject=f"WAN usage report for {format_date(report.generated_for)}",
                     body=formatted_report,
                 )

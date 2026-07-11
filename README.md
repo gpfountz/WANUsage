@@ -18,38 +18,44 @@ that same rotated month.
 
 ## Local Configuration
 
-Install the example with owner-only permissions and edit it for the machine
-running the command:
+Copy the tracked template to an owner-only local configuration and edit it for
+the machine running the command:
 
 ```bash
-sudo chmod 600 wanusage.toml
+cp wanusage.toml wanusage-dev.toml
+chmod 600 wanusage-dev.toml
 ```
 
-`wanusage-dev.toml` is ignored by Git because it can contain SMTP credentials.
-WANUsage rejects config files that are readable or writable by group or other
-users. It contains SMTP settings; OPNsense API credentials are kept separately.
+`wanusage.toml` remains a tracked template. `wanusage-dev.toml` is ignored by
+Git because it contains machine-specific SMTP settings. WANUsage rejects config
+files that are readable or writable by group or other users. OPNsense and SMTP
+authentication credentials are kept separately.
 
 Set `vnstat.daily_url` and `vnstat.monthly_url` to the OPNsense vnStat daily and
 monthly API endpoints.
 
-Create the private API credentials file outside the repository for the user
-that runs WANUsage:
+Create the private credentials file outside the repository for the user that
+runs WANUsage:
 
 ```bash
 install -d -m 700 "$HOME/.config/wanusage"
 install -m 600 /dev/null "$HOME/.config/wanusage/.env"
 ```
 
-`~/.config/wanusage/.env` must contain exactly the OPNsense Basic Auth credentials:
+`~/.config/wanusage/.env` holds the OPNsense Basic Auth and SMTP credentials:
 
 ```dotenv
 key=YourOPNSenseKey
 secret=YourOPNSenseSecret
+smtp_username=YourSMTPUsername
+smtp_password=YourSMTPPassword
 ```
 
-WANUsage does not read API credentials from `wanusage.toml` and rejects a
-credentials file that is accessible by group or other users. No `.env` file is
-stored in the source directory.
+WANUsage does not read OPNsense or SMTP authentication credentials from
+`wanusage-dev.toml` and rejects a credentials file that is accessible by group
+or other users. If SMTP authentication is not required, omit both
+`smtp_username` and `smtp_password`. No `.env` file is stored in the source
+directory.
 
 ## Usage
 
@@ -57,7 +63,7 @@ stored in the source directory.
 wanusage
 wanusage --help
 wanusage --version
-wanusage --config wanusage.toml
+wanusage --config wanusage-dev.toml
 wanusage --days 14
 wanusage --debug
 wanusage --email
@@ -69,14 +75,14 @@ Short options are also available: `-c`, `-d`, `-D`, `-e`, `-h`, `-m`, `-q`, and
 `-v`.
 
 `--days` accepts values from -1 to 29 and overrides `vnstat.default_days` from
-`wanusage.toml`. Use `0` to show only the current day, or `-1` to hide the daily
-usage section.
+`wanusage-dev.toml`. Use `0` to show only the current day, or `-1` to hide the
+daily usage section.
 
 `--months` accepts values from -1 to 11 and overrides `vnstat.default_months`
-from `wanusage.toml`. Use `0` to show only the current rotated month usage and
-estimate, or `-1` to hide the monthly usage section.
+from `wanusage-dev.toml`. Use `0` to show only the current rotated month usage
+and estimate, or `-1` to hide the monthly usage section.
 
-`--email` sends the report to `email.to_address` from `wanusage.toml`.
+`--email` sends the report to `email.to_address` from `wanusage-dev.toml`.
 Authenticated SMTP requires `email.use_tls = true`; the SMTP server certificate
 and hostname are validated using the operating system's trusted certificate
 authorities.
@@ -108,7 +114,7 @@ For local development without installing the console script globally:
 Example cron entry for a daily email report shortly after midnight:
 
 ```cron
-10 0 * * * /path/to/WANUsage/.venv/bin/wanusage --config /path/to/WANUsage/wanusage.toml --email
+10 0 * * * /path/to/WANUsage/.venv/bin/wanusage --config /path/to/WANUsage/wanusage-dev.toml --email
 ```
 
 ## Development
