@@ -85,7 +85,7 @@ def _usage_report(
                 total_bytes=500 * 1024**3,
             ),
             UsagePeriod(
-                name="May 2026 estimated",
+                name="Estimated",
                 start_date=date(2026, 5, 1),
                 end_date=date(2026, 6, 1),
                 total_bytes=estimated_current_period_bytes,

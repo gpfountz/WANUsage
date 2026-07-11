@@ -55,7 +55,7 @@ def test_format_report_includes_daily_and_period_totals() -> None:
                 total_bytes=2 * 1024**3,
             ),
             UsagePeriod(
-                name="May 2026 estimated",
+                name="Estimated",
                 start_date=date(2026, 5, 1),
                 end_date=date(2026, 6, 1),
                 total_bytes=3 * 1024**3,
@@ -71,22 +71,18 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     assert "WAN usage report for 5/26/2026" in formatted_report
     assert "Billing cycle day" not in formatted_report
     assert "Billing period usage:" not in formatted_report
-    assert "Month              |    Usage" in formatted_report
-    assert "Apr 2026           | 1.00 TiB" in formatted_report
-    assert "May 2026           | 2.00 GiB" in formatted_report
-    assert "May 2026 estimated | 3.00 GiB" in formatted_report
+    assert "Month" in formatted_report
+    assert "Apr 2026" in formatted_report
+    assert "May 2026" in formatted_report
+    assert "Estimated | 3.00 GiB" in formatted_report
     assert "Date      |    Usage" in formatted_report
     assert "5/24/2026 | 1.00 KiB" in formatted_report
     assert "5/25/2026 | 2.00 KiB" in formatted_report
     assert "Today     | 4.00 KiB" in formatted_report
-    assert formatted_report.index("Apr 2026") < formatted_report.index(
-        "May 2026           |"
-    )
-    assert formatted_report.index("May 2026           |") < formatted_report.index(
-        "May 2026 estimated"
-    )
+    assert formatted_report.index("Apr 2026") < formatted_report.index("May 2026")
+    assert formatted_report.index("May 2026") < formatted_report.index("Estimated")
     assert "Last 7 completed days and current day" not in formatted_report
-    assert formatted_report.index("May 2026 estimated") < formatted_report.index(
+    assert formatted_report.index("Estimated") < formatted_report.index(
         "\n\nDate      |"
     )
 

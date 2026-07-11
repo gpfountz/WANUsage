@@ -97,7 +97,7 @@ def test_build_usage_report_uses_daily_and_monthly_api_responses() -> None:
     assert [period.name for period in report.monthly_usage] == [
         "May 2026",
         "Jun 2026",
-        "Jun 2026 estimated",
+        "Estimated",
     ]
     assert report.monthly_usage[1].total_bytes == int(778.87 * 1024**3)
     assert report.monthly_usage[2].is_estimated is True
@@ -124,7 +124,7 @@ def test_zero_months_includes_current_month_and_estimate() -> None:
 
     assert [period.name for period in report.monthly_usage] == [
         "Jun 2026",
-        "Jun 2026 estimated",
+        "Estimated",
     ]
 
 

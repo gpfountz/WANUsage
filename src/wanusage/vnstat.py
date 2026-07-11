@@ -285,7 +285,7 @@ def _select_report_monthly_usage(
     if month_count > 0:
         previous_months = api_months[:-1][-month_count:]
     estimated_current_month: UsagePeriod = UsagePeriod(
-        name=f"{current_month.name} estimated",
+        name="Estimated",
         start_date=current_month.start_date,
         end_date=current_month.end_date,
         total_bytes=estimated_current_month_bytes,
