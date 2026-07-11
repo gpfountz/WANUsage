@@ -14,8 +14,6 @@ class VnstatConfig:
 
     daily_url: str
     monthly_url: str
-    key: str
-    secret: str = field(repr=False)
     default_days: int
     default_months: int
     daily_alert_gb: int
@@ -36,40 +34,51 @@ class EmailConfig:
 
 
 @dataclass(frozen=True)
+class ApiCredentials:
+    """OPNsense API credentials loaded from the private environment file."""
+
+    key: str
+    secret: str = field(repr=False)
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """The complete validated application configuration."""
 
     vnstat: VnstatConfig
     email: EmailConfig
+    api_credentials: ApiCredentials
 
 
 class ConfigError(ValueError):
     """Raised when the configuration file is missing, unsafe, or invalid."""
 
 
-def load_config(config_path: Path) -> AppConfig:
-    """Load and validate an application configuration from a private TOML file.
+def default_env_path() -> Path:
+    """Return the fixed credentials file path for the user running the app."""
 
-    The file must not grant any permissions to group or other users because it
-    may contain API and SMTP credentials.
+    return Path.home() / ".config" / "wanusage" / ".env"
+
+
+def load_config(config_path: Path) -> AppConfig:
+    """Load and validate TOML settings and private API credentials.
+
+    The TOML file holds SMTP credentials and the separate ``.env`` file holds
+    OPNsense API credentials. Both files must be private to their owner.
 
     Raises:
         ConfigError: If the file is missing, insecure, malformed, or contains an
             invalid or missing setting.
     """
 
-    if not config_path.exists():
-        raise ConfigError(f"Config file does not exist: {config_path}")
-    if S_IMODE(config_path.stat().st_mode) & 0o077:
-        raise ConfigError(
-            f"Config file permissions must not allow group or other access: {config_path}"
-        )
+    _validate_private_file(config_path, "Config file")
 
     with config_path.open("rb") as config_file:
         raw_config: dict[str, Any] = tomllib.load(config_file)
 
     vnstat_section: dict[str, Any] = _required_section(raw_config, "vnstat")
     email_section: dict[str, Any] = _optional_section(raw_config, "email")
+    _reject_legacy_api_credentials(vnstat_section)
 
     return AppConfig(
         vnstat=VnstatConfig(
@@ -78,8 +87,6 @@ def load_config(config_path: Path) -> AppConfig:
                 vnstat_section,
                 "monthly_url",
             ),
-            key=_required_str(vnstat_section, "key"),
-            secret=_required_str(vnstat_section, "secret"),
             default_days=_bounded_int(
                 vnstat_section,
                 "default_days",
@@ -121,7 +128,80 @@ def load_config(config_path: Path) -> AppConfig:
             to_address=_optional_str(email_section, "to_address"),
             use_tls=_optional_bool(email_section, "use_tls", default=True),
         ),
+        api_credentials=load_api_credentials(default_env_path()),
     )
+
+
+def load_api_credentials(env_path: Path) -> ApiCredentials:
+    """Load the required OPNsense credentials from a simple private ``.env`` file.
+
+    The file supports blank lines and whole-line comments. It must define only
+    nonempty ``key`` and ``secret`` assignments, each exactly once.
+    """
+
+    _validate_private_file(env_path, "Credentials file")
+    values: dict[str, str] = {}
+
+    for line_number, raw_line in enumerate(env_path.read_text(encoding="utf-8").splitlines(), 1):
+        line: str = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        name, separator, value = line.partition("=")
+        if not separator or name not in {"key", "secret"}:
+            raise ConfigError(
+                f"Credentials file contains an invalid entry on line {line_number}: {env_path}"
+            )
+        if name in values:
+            raise ConfigError(
+                f"Credentials file defines {name} more than once: {env_path}"
+            )
+
+        credential_value: str = _unquote_env_value(value.strip())
+        if not credential_value:
+            raise ConfigError(f"Credentials file has an empty {name} value: {env_path}")
+        values[name] = credential_value
+
+    missing_names: list[str] = [
+        name for name in ("key", "secret") if name not in values
+    ]
+    if missing_names:
+        missing_text: str = ", ".join(missing_names)
+        raise ConfigError(
+            f"Credentials file is missing required value(s) {missing_text}: {env_path}"
+        )
+
+    return ApiCredentials(key=values["key"], secret=values["secret"])
+
+
+def _validate_private_file(path: Path, label: str) -> None:
+    """Require a regular, owner-only file before reading its credentials."""
+
+    if not path.exists():
+        raise ConfigError(f"{label} does not exist: {path}")
+    if not path.is_file():
+        raise ConfigError(f"{label} must be a regular file: {path}")
+    if S_IMODE(path.stat().st_mode) & 0o077:
+        raise ConfigError(f"{label} permissions must not allow group or other access: {path}")
+
+
+def _reject_legacy_api_credentials(vnstat_section: dict[str, Any]) -> None:
+    """Reject credentials left in TOML after the migration to the ``.env`` file."""
+
+    legacy_keys: set[str] = {"key", "secret"} & vnstat_section.keys()
+    if legacy_keys:
+        names: str = ", ".join(sorted(legacy_keys))
+        raise ConfigError(
+            f"Move vnstat {names} to {default_env_path()} and remove it from the config file"
+        )
+
+
+def _unquote_env_value(value: str) -> str:
+    """Remove one matching pair of optional quotes from a dotenv value."""
+
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"\"", "'"}:
+        return value[1:-1]
+    return value
 
 
 def _required_section(raw_config: dict[str, Any], section_name: str) -> dict[str, Any]:

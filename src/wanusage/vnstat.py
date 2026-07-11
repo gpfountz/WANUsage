@@ -10,7 +10,7 @@ from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol
 
-from wanusage.config import VnstatConfig
+from wanusage.config import ApiCredentials, VnstatConfig
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
 from wanusage.reporting import sort_daily_usage
 
@@ -103,6 +103,7 @@ class VnstatClient:
 
     json_getter: JsonGetter
     config: VnstatConfig
+    credentials: ApiCredentials
 
     def build_usage_report(
         self,
@@ -129,8 +130,8 @@ class VnstatClient:
                 _response_text(
                     self.json_getter.get_json(
                         self.config.daily_url,
-                        key=self.config.key,
-                        secret=self.config.secret,
+                        key=self.credentials.key,
+                        secret=self.credentials.secret,
                     ),
                     self.config.daily_url,
                 )
@@ -148,8 +149,8 @@ class VnstatClient:
                 _response_text(
                     self.json_getter.get_json(
                         self.config.monthly_url,
-                        key=self.config.key,
-                        secret=self.config.secret,
+                        key=self.credentials.key,
+                        secret=self.credentials.secret,
                     ),
                     self.config.monthly_url,
                 ),

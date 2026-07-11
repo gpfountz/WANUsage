@@ -25,13 +25,31 @@ running the command:
 install -m 600 wanusage.example.toml wanusage.toml
 ```
 
-`wanusage.toml` is ignored by Git because it contains API and SMTP credentials.
+`wanusage.toml` is ignored by Git because it can contain SMTP credentials.
 WANUsage rejects config files that are readable or writable by group or other
-users.
+users. It contains SMTP settings; OPNsense API credentials are kept separately.
 
 Set `vnstat.daily_url` and `vnstat.monthly_url` to the OPNsense vnStat daily and
-monthly API endpoints. Set `vnstat.key` to the Basic Auth username/API key and
-`vnstat.secret` to the Basic Auth password/API secret.
+monthly API endpoints.
+
+Create the private API credentials file outside the repository for the user
+that runs WANUsage:
+
+```bash
+install -d -m 700 "$HOME/.config/wanusage"
+install -m 600 /dev/null "$HOME/.config/wanusage/.env"
+```
+
+`~/.config/wanusage/.env` must contain exactly the OPNsense Basic Auth credentials:
+
+```dotenv
+key=YourOPNSenseKey
+secret=YourOPNSenseSecret
+```
+
+WANUsage does not read API credentials from `wanusage.toml` and rejects a
+credentials file that is accessible by group or other users. No `.env` file is
+stored in the source directory.
 
 ## Usage
 

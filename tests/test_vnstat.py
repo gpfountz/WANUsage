@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from wanusage.config import VnstatConfig
+from wanusage.config import ApiCredentials, VnstatConfig
 from wanusage.vnstat import VnstatApiError, VnstatClient, _parse_byte_value
 
 DAILY_RESPONSE: str = """
@@ -47,8 +47,6 @@ def _config(*, daily_alert_gb: int = 50, monthly_alert_gb: int = 1000) -> Vnstat
     return VnstatConfig(
         daily_url="https://router.example.com/api/vnstat/service/daily/",
         monthly_url="https://router.example.com/api/vnstat/service/monthly/",
-        key="api-key",
-        secret="api-secret",
         default_days=7,
         default_months=1,
         daily_alert_gb=daily_alert_gb,
@@ -67,7 +65,14 @@ def _client(config: VnstatConfig | None = None) -> tuple[VnstatClient, FakeJsonG
             },
         }
     )
-    return VnstatClient(json_getter=json_getter, config=config or _config()), json_getter
+    return (
+        VnstatClient(
+            json_getter=json_getter,
+            config=config or _config(),
+            credentials=ApiCredentials(key="api-key", secret="api-secret"),
+        ),
+        json_getter,
+    )
 
 
 def test_build_usage_report_uses_daily_and_monthly_api_responses() -> None:
@@ -175,7 +180,11 @@ def test_monthly_response_must_include_estimate() -> None:
             },
         }
     )
-    client = VnstatClient(json_getter=json_getter, config=_config())
+    client = VnstatClient(
+        json_getter=json_getter,
+        config=_config(),
+        credentials=ApiCredentials(key="api-key", secret="api-secret"),
+    )
 
     with pytest.raises(VnstatApiError, match="estimated row"):
         client.build_usage_report(date(2026, 7, 9))
@@ -192,7 +201,11 @@ def test_monthly_response_must_include_at_least_one_month_row() -> None:
             },
         }
     )
-    client = VnstatClient(json_getter=json_getter, config=_config())
+    client = VnstatClient(
+        json_getter=json_getter,
+        config=_config(),
+        credentials=ApiCredentials(key="api-key", secret="api-secret"),
+    )
 
     with pytest.raises(VnstatApiError, match="month rows"):
         client.build_usage_report(date(2026, 7, 9))
