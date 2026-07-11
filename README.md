@@ -34,8 +34,10 @@ authentication credentials are kept separately.
 WANUsage uses `wanusage.toml` from the current directory when `--config` is not
 specified. Use `--config wanusage-dev.toml` to run with the dev configuration.
 
-Set `vnstat.daily_url` and `vnstat.monthly_url` to the OPNsense vnStat daily and
-monthly API endpoints.
+Set `vnstat.base_url` to the OPNsense HTTPS origin, such as
+`https://opnsense.local`. Set `vnstat.daily_url_path` and
+`vnstat.monthly_url_path` to the daily and monthly paths, such as
+`/api/vnstat/service/daily` and `/api/vnstat/service/monthly`.
 
 Create the private credentials file outside the repository for the user that
 runs WANUsage:
