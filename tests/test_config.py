@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from wanusage.config import AppConfig, ConfigError, default_env_path, load_config
+from wanusage.config import (
+    AppConfig,
+    ConfigError,
+    default_config_path,
+    env_path_for_config,
+    load_config,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -32,14 +38,13 @@ def write_private_test_configs(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
-def use_private_test_env_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def use_private_test_env_path(tmp_path: Path) -> Path:
     env_path: Path = tmp_path / ".env"
     env_path.write_text(
         "key=api-key\nsecret=api-secret\nsmtp_username=mailer\nsmtp_password=secret\n",
         encoding="utf-8",
     )
     env_path.chmod(0o600)
-    monkeypatch.setattr("wanusage.config.default_env_path", lambda: env_path)
     return env_path
 
 
@@ -101,8 +106,28 @@ def test_load_config_reads_typed_values(tmp_path: Path) -> None:
     assert "secret" not in repr(config.email)
 
 
-def test_default_env_path_uses_the_wanusage_config_directory() -> None:
-    assert default_env_path() == Path.home() / ".config" / "wanusage" / ".env"
+def test_default_config_path_uses_the_wanusage_config_directory() -> None:
+    assert default_config_path() == Path.home() / ".config" / "wanusage" / "wanusage.toml"
+
+
+def test_env_path_is_colocated_with_the_selected_config_file() -> None:
+    config_path = Path("/tmp/example/custom.toml")
+
+    assert env_path_for_config(config_path) == config_path.resolve().parent / ".env"
+
+
+def test_load_config_uses_env_file_next_to_custom_config(tmp_path: Path) -> None:
+    config_directory: Path = tmp_path / "custom"
+    config_directory.mkdir()
+    config_path: Path = config_directory / "router.toml"
+    env_path: Path = config_directory / ".env"
+    config_path.write_text(_config_text(), encoding="utf-8")
+    env_path.write_text("key=custom-key\nsecret=custom-secret\n", encoding="utf-8")
+
+    config: AppConfig = load_config(config_path)
+
+    assert config.api_credentials.key == "custom-key"
+    assert config.api_credentials.secret == "custom-secret"
 
 
 def test_load_config_defaults_default_months_to_one(tmp_path: Path) -> None:
@@ -151,30 +176,24 @@ def test_load_config_rejects_legacy_smtp_credentials_in_toml(tmp_path: Path) -> 
 )
 def test_load_config_rejects_invalid_credentials_file(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     env_text: str,
 ) -> None:
     config_path: Path = tmp_path / "wanusage.toml"
     env_path: Path = tmp_path / ".env"
     config_path.write_text(_config_text(), encoding="utf-8")
     env_path.write_text(env_text, encoding="utf-8")
-    monkeypatch.setattr("wanusage.config.default_env_path", lambda: env_path)
-
     with pytest.raises(ConfigError, match="Credentials file"):
         load_config(config_path)
 
 
 def test_load_config_rejects_group_readable_credentials_file(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config_path: Path = tmp_path / "wanusage.toml"
     env_path: Path = tmp_path / ".env"
     config_path.write_text(_config_text(), encoding="utf-8")
     env_path.write_text("key=api-key\nsecret=api-secret\n", encoding="utf-8")
     env_path.chmod(0o640)
-    monkeypatch.setattr("wanusage.config.default_env_path", lambda: env_path)
-
     with pytest.raises(ConfigError, match="Credentials file permissions"):
         load_config(config_path)
 

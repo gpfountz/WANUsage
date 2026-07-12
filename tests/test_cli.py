@@ -14,6 +14,7 @@ from wanusage.config import (
     EmailConfig,
     SmtpCredentials,
     VnstatConfig,
+    default_config_path,
 )
 from wanusage.models import DailyUsage, UsagePeriod, UsageReport
 from wanusage.vnstat import VnstatClient
@@ -106,8 +107,8 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     output: str = capsys.readouterr().out
     assert error.value.code == 0
     assert "--config" in output
-    assert "Defaults to wanusage.toml in" in output
-    assert "current directory." in output
+    assert "Defaults to" in output
+    assert "~/.config/wanusage/wanusage.toml." in output
     assert "--debug" in output
     assert "--days" in output
     assert "--email" in output
@@ -164,12 +165,12 @@ def test_short_version_flag_prints_version(capsys: pytest.CaptureFixture[str]) -
     assert output.strip() == f"wanusage {__version__}"
 
 
-def test_config_defaults_to_current_directory_wanusage_toml() -> None:
+def test_config_defaults_to_the_wanusage_config_directory() -> None:
     parser: argparse.ArgumentParser = build_parser()
 
     args: argparse.Namespace = parser.parse_args([])
 
-    assert args.config == "wanusage.toml"
+    assert args.config == str(default_config_path())
     assert args.days is None
     assert args.email is False
     assert args.months is None
