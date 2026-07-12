@@ -17,7 +17,7 @@ from wanusage.alerts import (
     monthly_alert_state_path_for_config,
     should_send_monthly_alert,
 )
-from wanusage.config import ConfigError, load_config
+from wanusage.config import ConfigError, default_config_path, load_config
 from wanusage.emailer import EmailError, EmailSender
 from wanusage.reporting import format_daily_alert_report, format_date, format_report
 from wanusage.vnstat import UrllibJsonGetter, VnstatApiError, VnstatClient
@@ -34,10 +34,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-c",
         "--config",
-        default="wanusage.toml",
+        default=str(default_config_path()),
         help=(
             "Optional path to local TOML config containing router and email settings. "
-            "Defaults to wanusage.toml in the current directory."
+            "Defaults to ~/.config/wanusage/wanusage.toml."
         ),
     )
     parser.add_argument(

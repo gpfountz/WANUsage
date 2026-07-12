@@ -18,33 +18,33 @@ that same rotated month.
 
 ## Local Configuration
 
-Copy the tracked template to an owner-only local configuration and edit it for
-the machine running the command:
+The tracked `wanusage.toml` is a template. For a first installation, create the
+private runtime configuration directory and copy the template into it:
 
 ```bash
-cp wanusage.toml wanusage-dev.toml
-chmod 600 wanusage-dev.toml
+install -d -m 700 "$HOME/.config/wanusage"
+install -m 600 wanusage.toml "$HOME/.config/wanusage/wanusage.toml"
 ```
 
-`wanusage.toml` remains a tracked template. `wanusage-dev.toml` is ignored by
-Git because it contains machine-specific SMTP settings. WANUsage rejects config
-files that are readable or writable by group or other users. OPNsense and SMTP
+WANUsage reads `~/.config/wanusage/wanusage.toml` when `--config` is not
+specified. It contains machine-specific router and SMTP transport settings and
+must not be readable or writable by group or other users. OPNsense and SMTP
 authentication credentials are kept separately.
 
-WANUsage uses `wanusage.toml` from the current directory when `--config` is not
-specified. Use `--config wanusage-dev.toml` to run with the dev configuration.
+When using `--config /path/to/wanusage.toml`, WANUsage reads `/path/to/.env` and
+stores alert state next to that TOML file as `router-alert-state.txt` and
+`router-monthly-alert-state.txt`.
 
 Set `vnstat.base_url` to the OPNsense HTTPS origin, such as
 `https://opnsense.local`. Set `vnstat.daily_url_path` and
 `vnstat.monthly_url_path` to the daily and monthly paths, such as
 `/api/vnstat/service/daily` and `/api/vnstat/service/monthly`.
 
-Create the private credentials file outside the repository for the user that
-runs WANUsage:
+Create the private credentials file in the same directory as the TOML file:
 
 ```bash
-install -d -m 700 "$HOME/.config/wanusage"
-install -m 600 /dev/null "$HOME/.config/wanusage/.env"
+[ -e "$HOME/.config/wanusage/.env" ] || install -m 600 /dev/null "$HOME/.config/wanusage/.env"
+chmod 600 "$HOME/.config/wanusage/.env"
 ```
 
 `~/.config/wanusage/.env` holds the OPNsense Basic Auth and SMTP credentials:
@@ -57,8 +57,8 @@ smtp_password=YourSMTPPassword
 ```
 
 WANUsage does not read OPNsense or SMTP authentication credentials from
-`wanusage-dev.toml` and rejects a credentials file that is accessible by group
-or other users. If SMTP authentication is not required, omit both
+`~/.config/wanusage/wanusage.toml` and rejects a credentials file that is
+accessible by group or other users. If SMTP authentication is not required, omit both
 `smtp_username` and `smtp_password`. No `.env` file is stored in the source
 directory.
 
@@ -68,7 +68,7 @@ directory.
 wanusage
 wanusage --help
 wanusage --version
-wanusage --config wanusage-dev.toml
+wanusage --config /path/to/router.toml
 wanusage --days 14
 wanusage --debug
 wanusage --email
@@ -80,14 +80,14 @@ Short options are also available: `-c`, `-d`, `-D`, `-e`, `-h`, `-m`, `-q`, and
 `-v`.
 
 `--days` accepts values from -1 to 29 and overrides `vnstat.default_days` from
-`wanusage-dev.toml`. Use `0` to show only the current day, or `-1` to hide the
-daily usage section.
+the selected TOML configuration. Use `0` to show only the current day, or `-1`
+to hide the daily usage section.
 
 `--months` accepts values from -1 to 11 and overrides `vnstat.default_months`
-from `wanusage-dev.toml`. Use `0` to show only the current rotated month usage
-and estimate, or `-1` to hide the monthly usage section.
+from the selected TOML configuration. Use `0` to show only the current rotated
+month usage and estimate, or `-1` to hide the monthly usage section.
 
-`--email` sends the report to `email.to_address` from `wanusage-dev.toml`.
+`--email` sends the report to `email.to_address` from the selected TOML configuration.
 Authenticated SMTP requires `email.use_tls = true`; the SMTP server certificate
 and hostname are validated using the operating system's trusted certificate
 authorities.
@@ -113,13 +113,13 @@ positive threshold, the app sends one email per rotated month with subject
 For local development without installing the console script globally:
 
 ```bash
-.venv/bin/wanusage --config wanusage-dev.toml
+.venv/bin/wanusage
 ```
 
 Example cron entry for a daily email report shortly after midnight:
 
 ```cron
-10 0 * * * /path/to/WANUsage/.venv/bin/wanusage --config /path/to/WANUsage/wanusage-dev.toml --email
+10 0 * * * /path/to/WANUsage -c /path/to/wanusage.toml -q -e
 ```
 
 ## Development

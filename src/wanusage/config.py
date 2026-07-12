@@ -82,16 +82,23 @@ class ConfigError(ValueError):
     """Raised when the configuration file is missing, unsafe, or invalid."""
 
 
-def default_env_path() -> Path:
-    """Return the fixed credentials file path for the user running the app."""
+def default_config_path() -> Path:
+    """Return the default runtime TOML configuration path."""
 
-    return Path.home() / ".config" / "wanusage" / ".env"
+    return Path.home() / ".config" / "wanusage" / "wanusage.toml"
+
+
+def env_path_for_config(config_path: Path) -> Path:
+    """Return the private ``.env`` path colocated with ``config_path``."""
+
+    resolved_config_path: Path = config_path.expanduser().resolve()
+    return resolved_config_path.with_name(".env")
 
 
 def load_config(config_path: Path) -> AppConfig:
     """Load and validate TOML settings and private environment credentials.
 
-    The TOML file holds router and SMTP transport settings. The separate
+    The TOML file holds router and SMTP transport settings. A colocated
     ``.env`` file holds OPNsense and SMTP authentication credentials. Both
     files must be private to their owner.
 
@@ -107,10 +114,11 @@ def load_config(config_path: Path) -> AppConfig:
 
     vnstat_section: dict[str, Any] = _required_section(raw_config, "vnstat")
     email_section: dict[str, Any] = _optional_section(raw_config, "email")
-    _reject_legacy_api_credentials(vnstat_section)
-    _reject_legacy_smtp_credentials(email_section)
+    env_path: Path = env_path_for_config(config_path)
+    _reject_legacy_api_credentials(vnstat_section, env_path)
+    _reject_legacy_smtp_credentials(email_section, env_path)
     environment_credentials: EnvironmentCredentials = load_environment_credentials(
-        default_env_path()
+        env_path
     )
 
     return AppConfig(
@@ -237,25 +245,25 @@ def _validate_private_file(path: Path, label: str) -> None:
         raise ConfigError(f"{label} permissions must not allow group or other access: {path}")
 
 
-def _reject_legacy_api_credentials(vnstat_section: dict[str, Any]) -> None:
+def _reject_legacy_api_credentials(vnstat_section: dict[str, Any], env_path: Path) -> None:
     """Reject credentials left in TOML after the migration to the ``.env`` file."""
 
     legacy_keys: set[str] = {"key", "secret"} & vnstat_section.keys()
     if legacy_keys:
         names: str = ", ".join(sorted(legacy_keys))
         raise ConfigError(
-            f"Move vnstat {names} to {default_env_path()} and remove it from the config file"
+            f"Move vnstat {names} to {env_path} and remove it from the config file"
         )
 
 
-def _reject_legacy_smtp_credentials(email_section: dict[str, Any]) -> None:
+def _reject_legacy_smtp_credentials(email_section: dict[str, Any], env_path: Path) -> None:
     """Reject SMTP credentials left in TOML after the migration to the ``.env`` file."""
 
     legacy_keys: set[str] = {"username", "password"} & email_section.keys()
     if legacy_keys:
         names: str = ", ".join(sorted(legacy_keys))
         raise ConfigError(
-            f"Move email {names} to {default_env_path()} and remove it from the config file"
+            f"Move email {names} to {env_path} and remove it from the config file"
         )
 
 
