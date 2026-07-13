@@ -132,3 +132,33 @@ pytest
 ruff check .
 mypy src tests
 ```
+## Deployment
+
+### Requires python 3.14 or later.
+
+- Create folder /usr/local/wanusage and copy .py files there.
+
+- Create file wanusage in /usr/local/bin containing the following.  Modify #! as needed for your python installation.
+  ```bash
+  #!/opt/homebrew/bin/python3
+  import sys
+  sys.path.append('/usr/local')
+  from wanusage.cli import main
+  if __name__ == '__main__':
+      sys.argv[0] = sys.argv[0].removesuffix('.exe')
+      sys.exit(main())
+  ```
+
+- Create folder ~/.config/wanusage and copy file wanusage.toml there and edit for your environment.  Create file .env there and edit for your credentials.
+  ```bash
+  key=YourOPNSenseKey
+  secret=YourOPNSenseSecret
+  smtp_username=YourSMTPUsername
+  smtp_password=YourSMTPPassword
+  ```
+
+- Set access control for config files
+  ```
+  sudo chmod 600 ~/.config/wanusage/wanusage.toml
+  sudo chmod 600 ~/.config/wanusage/.env
+  ```
