@@ -7,7 +7,7 @@ name = "wanusage"
 dynamic = ["version"]
 description = "Report WAN usage from the OPNsense vnStat API."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 authors = [
   { name = "Greg" }
 ]
