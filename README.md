@@ -119,7 +119,7 @@ For local development without installing the console script globally:
 Example cron entry for a daily email report shortly after midnight:
 
 ```cron
-10 0 * * * /path/to/WANUsage -c /path/to/wanusage.toml -q -e
+10 0 * * * /usr/local/wanusage/.venv/bin/wanusage -q -e
 ```
 
 ## Development
@@ -134,31 +134,89 @@ mypy src tests
 ```
 ## Deployment
 
-### Requires python 3.14 or later.
+### Requires Python 3.14 or later.
 
-- Create folder /usr/local/wanusage and copy .py files there.
+Do not deploy WANUsage by copying `.py` files or maintaining a handwritten
+wrapper script. Build a wheel from the source checkout, copy that wheel to each
+server, and install it into a dedicated virtual environment.
 
-- Create file wanusage in /usr/local/bin containing the following.  Modify #! as needed for your python installation.
-  ```bash
-  #!/opt/homebrew/bin/python3
-  import sys
-  sys.path.append('/usr/local')
-  from wanusage.cli import main
-  if __name__ == '__main__':
-      sys.argv[0] = sys.argv[0].removesuffix('.exe')
-      sys.exit(main())
-  ```
+Build the wheel on the development Mac from the WANUsage project directory:
 
-- Create folder ~/.config/wanusage and copy file wanusage.toml there and edit for your environment.  Create file .env there and edit for your credentials.
-  ```bash
-  key=YourOPNSenseKey
-  secret=YourOPNSenseSecret
-  smtp_username=YourSMTPUsername
-  smtp_password=YourSMTPPassword
-  ```
+```bash
+cd /Users/greg/Library/CloudStorage/SynologyDrive-home/Codex/WANUsage
+.venv/bin/python -m pip wheel . -w dist
+```
 
-- Set access control for config files
-  ```
-  sudo chmod 600 ~/.config/wanusage/wanusage.toml
-  sudo chmod 600 ~/.config/wanusage/.env
-  ```
+Copy the generated wheel to each server:
+
+```text
+dist/wanusage-<version>-py3-none-any.whl
+```
+
+On each server, install or upgrade WANUsage in its dedicated virtual
+environment:
+
+```bash
+sudo install -d -m 755 /usr/local/wanusage
+sudo chown "$USER:$(id -gn)" /usr/local/wanusage
+sudo python3.14 -m venv /usr/local/wanusage/.venv
+sudo /usr/local/wanusage/.venv/bin/python -m pip install --upgrade /path/to/wanusage-<version>-py3-none-any.whl
+```
+
+Create or update a symlink so WANUsage can be run by typing `wanusage`:
+
+```bash
+sudo ln -sfn /usr/local/wanusage/.venv/bin/wanusage /usr/local/bin/wanusage
+```
+
+Use the symlink for interactive runs:
+
+```bash
+wanusage --version
+wanusage -q -e
+```
+
+The generated console command remains available at its full path:
+
+```bash
+/usr/local/wanusage/.venv/bin/wanusage --version
+/usr/local/wanusage/.venv/bin/wanusage -q -e
+```
+
+For cron, run the generated command with an absolute path:
+
+```cron
+10 0 * * * /usr/local/wanusage/.venv/bin/wanusage -q -e
+```
+
+Create or maintain the per-server runtime files for the same user that runs
+WANUsage:
+
+```bash
+install -d -m 700 "$HOME/.config/wanusage"
+install -m 600 /path/to/wanusage.toml "$HOME/.config/wanusage/wanusage.toml"
+[ -e "$HOME/.config/wanusage/.env" ] || install -m 600 /dev/null "$HOME/.config/wanusage/.env"
+chmod 600 "$HOME/.config/wanusage/wanusage.toml"
+chmod 600 "$HOME/.config/wanusage/.env"
+```
+
+For a new server, copy the tracked `wanusage.toml` template from the project
+alongside the wheel, then use that copied template as `/path/to/wanusage.toml`
+in the command above. For an existing server, keep the current
+`~/.config/wanusage/wanusage.toml` and update it only when the template gains a
+new setting.
+
+Edit `~/.config/wanusage/wanusage.toml` for that server's OPNsense and SMTP
+settings. Edit `~/.config/wanusage/.env` for that server's credentials:
+
+```dotenv
+key=YourOPNSenseKey
+secret=YourOPNSenseSecret
+smtp_username=YourSMTPUsername
+smtp_password=YourSMTPPassword
+```
+
+Alert state is stored next to the selected config file as
+`wanusage-alert-state.txt` and `wanusage-monthly-alert-state.txt`. These files
+are created automatically. Copy them only when migrating an existing server and
+preserving alert history matters.

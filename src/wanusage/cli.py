@@ -7,6 +7,14 @@ from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 
+from wanusage.runtime import ensure_supported_python_runtime
+
+try:
+    ensure_supported_python_runtime()
+except RuntimeError as error:
+    print(f"wanusage: {error}", file=sys.stderr)
+    raise SystemExit(1) from error
+
 from wanusage import __version__
 from wanusage.alerts import (
     ALERT_SUBJECT,
