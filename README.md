@@ -159,8 +159,8 @@ environment:
 ```bash
 sudo install -d -m 755 /usr/local/wanusage
 sudo chown "$USER:$(id -gn)" /usr/local/wanusage
-sudo python3.14 -m venv /usr/local/wanusage/.venv
-sudo /usr/local/wanusage/.venv/bin/python -m pip install --upgrade /path/to/wanusage-<version>-py3-none-any.whl
+python3.14 -m venv /usr/local/wanusage/.venv
+/usr/local/wanusage/.venv/bin/python -m pip install --upgrade /path/to/wanusage-<version>-py3-none-any.whl
 ```
 
 Create or update a symlink so WANUsage can be run by typing `wanusage`:
