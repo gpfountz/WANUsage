@@ -33,7 +33,8 @@ authentication credentials are kept separately.
 
 When using `--config /path/to/wanusage.toml`, WANUsage reads `/path/to/.env` and
 stores alert state next to that TOML file as `router-alert-state.txt` and
-`router-monthly-alert-state.txt`.
+`router-monthly-alert-state.txt`. The `--onetime` run state is stored there as
+`router-daily-state.txt`.
 
 Set `vnstat.base_url` to the OPNsense HTTPS origin, such as
 `https://opnsense.local`. Set `vnstat.daily_url_path` and
@@ -73,10 +74,11 @@ wanusage --days 14
 wanusage --debug
 wanusage --email
 wanusage --months 3
+wanusage --onetime
 wanusage --quiet
 ```
 
-Short options are also available: `-c`, `-d`, `-D`, `-e`, `-h`, `-m`, `-q`, and
+Short options are also available: `-c`, `-d`, `-D`, `-e`, `-h`, `-m`, `-o`, `-q`, and
 `-v`.
 
 `--days` accepts values from -1 to 29 and overrides `vnstat.default_days` from
@@ -94,6 +96,12 @@ authorities.
 
 `--quiet` suppresses stdout output only. Email reports and alert emails still
 process normally.
+
+`--onetime` (or `-o`) runs the complete workflow only once per calendar day.
+After a successful run, WANUsage writes that date to
+`<config-name>-daily-state.txt` next to the selected TOML file. Further runs
+with this option on the same day exit silently. The state transaction is locked
+so overlapping scheduled runs cannot both execute.
 
 `vnstat.daily_alert_gb` accepts values from 0 to 999. A value of `0` disables
 daily alerts. A positive value sends one alert email per run with subject
@@ -119,7 +127,7 @@ For local development without installing the console script globally:
 Example cron entry for a daily email report shortly after midnight:
 
 ```cron
-10 0 * * * /usr/local/wanusage/.venv/bin/wanusage -q -e
+10 0 * * * /usr/local/wanusage/.venv/bin/wanusage -q -e -o
 ```
 
 ## Development
@@ -217,6 +225,7 @@ smtp_password=YourSMTPPassword
 ```
 
 Alert state is stored next to the selected config file as
-`wanusage-alert-state.txt` and `wanusage-monthly-alert-state.txt`. These files
-are created automatically. Copy them only when migrating an existing server and
-preserving alert history matters.
+`wanusage-alert-state.txt` and `wanusage-monthly-alert-state.txt`; one-time
+execution uses `wanusage-daily-state.txt`. These files are created
+automatically. Copy them only when migrating an existing server and preserving
+alert history or one-time run history matters.

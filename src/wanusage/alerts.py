@@ -108,6 +108,13 @@ def monthly_alert_state_path_for_config(config_path: Path) -> Path:
     return resolved_path.with_name(f"{resolved_path.stem}-monthly-alert-state.txt")
 
 
+def daily_state_path_for_config(config_path: Path) -> Path:
+    """Return the one-time daily-run state path associated with ``config_path``."""
+
+    resolved_path: Path = config_path.resolve()
+    return resolved_path.with_name(f"{resolved_path.stem}-daily-state.txt")
+
+
 def choose_alert(
     daily_usage: tuple[DailyUsage, ...],
     *,

@@ -22,6 +22,7 @@ from wanusage.alerts import (
     AlertStateStore,
     alert_state_path_for_config,
     choose_alert,
+    daily_state_path_for_config,
     monthly_alert_state_path_for_config,
     should_send_monthly_alert,
 )
@@ -87,6 +88,12 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "-o",
+        "--onetime",
+        action="store_true",
+        help="Run at most once per calendar day; later runs exit silently.",
+    )
+    parser.add_argument(
         "-q",
         "--quiet",
         action="store_true",
@@ -115,6 +122,22 @@ def _handle_report(args: argparse.Namespace) -> None:
     """Load configuration, collect usage, process alerts, and deliver output."""
 
     config_path = Path(args.config).expanduser()
+    report_date: date = date.today()
+
+    if args.onetime:
+        daily_state_store = AlertStateStore(daily_state_path_for_config(config_path))
+        with daily_state_store.locked():
+            if daily_state_store.read_last_alert_date() == report_date:
+                return
+            _run_report(args, config_path, report_date)
+            daily_state_store.write_last_alert_date(report_date)
+        return
+
+    _run_report(args, config_path, report_date)
+
+
+def _run_report(args: argparse.Namespace, config_path: Path, report_date: date) -> None:
+    """Run the report workflow for one calendar date."""
 
     try:
         app_config = load_config(config_path)
@@ -123,7 +146,6 @@ def _handle_report(args: argparse.Namespace) -> None:
             config=app_config.vnstat,
             credentials=app_config.api_credentials,
         )
-        report_date: date = date.today()
         report = vnstat_client.build_usage_report(
             report_date,
             day_count=args.days if args.days is not None else app_config.vnstat.default_days,
