@@ -11,6 +11,7 @@ from wanusage.alerts import (
     AlertStateStore,
     alert_state_path_for_config,
     choose_alert,
+    daily_state_path_for_config,
     monthly_alert_state_path_for_config,
     should_send_monthly_alert,
 )
@@ -123,6 +124,15 @@ def test_monthly_alert_state_path_lives_next_to_config() -> None:
     assert state_path.parent == config_path.resolve().parent
 
 
+def test_daily_state_path_lives_next_to_config() -> None:
+    config_path = Path("/tmp/example/wanusage.toml")
+
+    state_path: Path = daily_state_path_for_config(config_path)
+
+    assert state_path.name == "wanusage-daily-state.txt"
+    assert state_path.parent == config_path.resolve().parent
+
+
 def test_custom_configs_use_independent_alert_state_paths() -> None:
     first_config = Path("/tmp/example/router-a.toml")
     second_config = Path("/tmp/example/router-b.toml")
@@ -135,6 +145,8 @@ def test_custom_configs_use_independent_alert_state_paths() -> None:
     assert monthly_alert_state_path_for_config(second_config).name == (
         "router-b-monthly-alert-state.txt"
     )
+    assert daily_state_path_for_config(first_config).name == "router-a-daily-state.txt"
+    assert daily_state_path_for_config(second_config).name == "router-b-daily-state.txt"
 
 
 def test_monthly_alert_is_disabled_when_threshold_is_zero() -> None:

@@ -115,6 +115,7 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert "email.to_address" in output
     assert "--help" in output
     assert "--months" in output
+    assert "--onetime" in output
     assert "--quiet" in output
     assert "--version" in output
     assert "from -1 to" in output
@@ -127,7 +128,8 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert output.index("--debug") < output.index("--email")
     assert output.index("--email") < output.index("--help")
     assert output.index("--help") < output.index("--months")
-    assert output.index("--months") < output.index("--quiet")
+    assert output.index("--months") < output.index("--onetime")
+    assert output.index("--onetime") < output.index("--quiet")
     assert output.index("--quiet") < output.index("--version")
 
     option_strings: set[tuple[str, ...]] = {
@@ -139,6 +141,7 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert ("-e", "--email") in option_strings
     assert ("-h", "--help") in option_strings
     assert ("-m", "--months") in option_strings
+    assert ("-o", "--onetime") in option_strings
     assert ("-q", "--quiet") in option_strings
     assert ("-v", "--version") in option_strings
 
@@ -174,6 +177,7 @@ def test_config_defaults_to_the_wanusage_config_directory() -> None:
     assert args.days is None
     assert args.email is False
     assert args.months is None
+    assert args.onetime is False
     assert args.quiet is False
 
 
@@ -233,6 +237,22 @@ def test_short_debug_flag_sets_debug() -> None:
     args: argparse.Namespace = parser.parse_args(["-D"])
 
     assert args.debug is True
+
+
+def test_onetime_flag_accepts_no_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["--onetime"])
+
+    assert args.onetime is True
+
+
+def test_short_onetime_flag_accepts_no_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["-o"])
+
+    assert args.onetime is True
 
 
 def test_quiet_flag_accepts_no_value() -> None:
@@ -339,6 +359,7 @@ def test_daily_alert_workflow_includes_hidden_triggering_day(
             debug=False,
             email=False,
             months=1,
+            onetime=False,
             quiet=True,
         )
     )
@@ -388,6 +409,7 @@ def test_monthly_alert_workflow_sends_once_per_billing_period(
         debug=False,
         email=False,
         months=1,
+        onetime=False,
         quiet=True,
     )
 
@@ -400,3 +422,55 @@ def test_monthly_alert_workflow_sends_once_per_billing_period(
     assert (tmp_path / "router-b-monthly-alert-state.txt").read_text(
         encoding="utf-8"
     ) == "2026-05-01\n"
+
+
+def test_onetime_runs_once_per_day_and_then_exits_silently(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path: Path = tmp_path / "router.toml"
+    report: UsageReport = _usage_report(
+        day_count=7,
+        daily_usage=(),
+        daily_alert_usage=(),
+        estimated_current_period_bytes=0,
+    )
+    build_calls: list[date] = []
+
+    def build_usage_report(
+        _client: VnstatClient,
+        report_date: date,
+        *,
+        day_count: int = 7,
+        month_count: int = 1,
+    ) -> UsageReport:
+        del day_count, month_count
+        build_calls.append(report_date)
+        return report
+
+    monkeypatch.setattr("wanusage.cli.load_config", lambda _path: _app_config(
+        daily_alert_gb=0,
+        monthly_alert_gb=0,
+    ))
+    monkeypatch.setattr("wanusage.cli.date", FixedDate)
+    monkeypatch.setattr("wanusage.cli.UrllibJsonGetter", RecordingJsonGetter)
+    monkeypatch.setattr(VnstatClient, "build_usage_report", build_usage_report)
+    args = argparse.Namespace(
+        config=str(config_path),
+        days=None,
+        debug=False,
+        email=False,
+        months=None,
+        onetime=True,
+        quiet=False,
+    )
+
+    _handle_report(args)
+    assert capsys.readouterr().out
+
+    _handle_report(args)
+
+    assert capsys.readouterr().out == ""
+    assert build_calls == [date(2026, 5, 26)]
+    assert (tmp_path / "router-daily-state.txt").read_text(encoding="utf-8") == "2026-05-26\n"
