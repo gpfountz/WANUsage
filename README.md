@@ -67,6 +67,7 @@ directory.
 
 ```bash
 wanusage
+wanusage --alerts
 wanusage --help
 wanusage --version
 wanusage --config /path/to/router.toml
@@ -78,7 +79,7 @@ wanusage --onetime
 wanusage --quiet
 ```
 
-Short options are also available: `-c`, `-d`, `-D`, `-e`, `-h`, `-m`, `-o`, `-q`, and
+Short options are also available: `-a`, `-c`, `-d`, `-D`, `-e`, `-h`, `-m`, `-o`, `-q`, and
 `-v`.
 
 `--days` accepts values from -1 to 29 and overrides `vnstat.default_days` from
@@ -94,6 +95,9 @@ Authenticated SMTP requires `email.use_tls = true`; the SMTP server certificate
 and hostname are validated using the operating system's trusted certificate
 authorities.
 
+`--alerts` sends configured daily and monthly alert emails. Alerts are not sent
+unless this option is specified, even when an alert threshold is configured.
+
 `--quiet` suppresses stdout output only. Email reports and alert emails still
 process normally.
 
@@ -104,7 +108,7 @@ with this option on the same day exit silently. The state transaction is locked
 so overlapping scheduled runs cannot both execute.
 
 `vnstat.daily_alert_gb` accepts values from 0 to 999. A value of `0` disables
-daily alerts. A positive value sends one alert email per run with subject
+daily alerts. With `--alerts`, a positive value sends one alert email per run with subject
 `daily high usage alert` when an unalerted daily usage value exceeds the
 configured GiB threshold. Alert state is stored next to the config file in
 `<config-name>-alert-state.txt`, which records the most recent date that
@@ -113,7 +117,7 @@ API, independently of the `--days` report setting. State updates are locked and
 written atomically to prevent duplicate alerts from overlapping cron runs.
 
 `vnstat.monthly_alert_gb` accepts values from 0 to 9999. A value of `0` disables
-monthly alerts. When the estimated current rotated month usage exceeds a
+monthly alerts. With `--alerts`, when the estimated current rotated month usage exceeds a
 positive threshold, the app sends one email per rotated month with subject
 `monthly high usage alert`. The alerted month is stored in
 `<config-name>-monthly-alert-state.txt` next to the config file.
