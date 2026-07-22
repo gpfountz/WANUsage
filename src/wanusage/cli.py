@@ -41,6 +41,12 @@ def build_parser() -> argparse.ArgumentParser:
         add_help=False,
     )
     parser.add_argument(
+        "-a",
+        "--alerts",
+        action="store_true",
+        help="Send configured daily and monthly alert emails.",
+    )
+    parser.add_argument(
         "-c",
         "--config",
         default=str(default_config_path()),
@@ -154,7 +160,7 @@ def _run_report(args: argparse.Namespace, config_path: Path, report_date: date) 
             ),
         )
         formatted_report: str = format_report(report)
-        if app_config.vnstat.daily_alert_gb > 0:
+        if args.alerts and app_config.vnstat.daily_alert_gb > 0:
             alert_store = AlertStateStore(alert_state_path_for_config(config_path))
             with alert_store.locked():
                 alert_decision = choose_alert(
@@ -178,7 +184,7 @@ def _run_report(args: argparse.Namespace, config_path: Path, report_date: date) 
 
                     alert_store.write_last_alert_date(alert_date)
 
-        if app_config.vnstat.monthly_alert_gb > 0:
+        if args.alerts and app_config.vnstat.monthly_alert_gb > 0:
             monthly_alert_store = AlertStateStore(
                 monthly_alert_state_path_for_config(config_path)
             )

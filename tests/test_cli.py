@@ -106,6 +106,7 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
 
     output: str = capsys.readouterr().out
     assert error.value.code == 0
+    assert "--alerts" in output
     assert "--config" in output
     assert "Defaults to" in output
     assert "~/.config/wanusage/wanusage.toml." in output
@@ -123,6 +124,7 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     assert "vnstat.default_months" in output
     assert "hide daily" in output
     assert "usage." in output
+    assert output.index("--alerts") < output.index("--config")
     assert output.index("--config") < output.index("--days")
     assert output.index("--days") < output.index("--debug")
     assert output.index("--debug") < output.index("--email")
@@ -135,6 +137,7 @@ def test_top_level_help_lists_global_parameters(capsys: pytest.CaptureFixture[st
     option_strings: set[tuple[str, ...]] = {
         tuple(action.option_strings) for action in parser._actions
     }
+    assert ("-a", "--alerts") in option_strings
     assert ("-c", "--config") in option_strings
     assert ("-d", "--days") in option_strings
     assert ("-D", "--debug") in option_strings
@@ -174,6 +177,7 @@ def test_config_defaults_to_the_wanusage_config_directory() -> None:
     args: argparse.Namespace = parser.parse_args([])
 
     assert args.config == str(default_config_path())
+    assert args.alerts is False
     assert args.days is None
     assert args.email is False
     assert args.months is None
@@ -187,6 +191,22 @@ def test_short_config_flag_sets_config_path() -> None:
     args: argparse.Namespace = parser.parse_args(["-c", "custom.toml"])
 
     assert args.config == "custom.toml"
+
+
+def test_alerts_flag_accepts_no_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["--alerts"])
+
+    assert args.alerts is True
+
+
+def test_short_alerts_flag_accepts_no_value() -> None:
+    parser: argparse.ArgumentParser = build_parser()
+
+    args: argparse.Namespace = parser.parse_args(["-a"])
+
+    assert args.alerts is True
 
 
 def test_email_flag_accepts_no_value() -> None:
@@ -314,9 +334,11 @@ def test_months_rejects_values_outside_range(value: str) -> None:
     assert error.value.code == 2
 
 
-def test_daily_alert_workflow_includes_hidden_triggering_day(
+@pytest.mark.parametrize("alerts", [False, True])
+def test_daily_alert_workflow_requires_alerts_option(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    alerts: bool,
 ) -> None:
     config_path: Path = tmp_path / "router-a.toml"
     triggering_usage = DailyUsage(
@@ -354,6 +376,7 @@ def test_daily_alert_workflow_includes_hidden_triggering_day(
 
     _handle_report(
         argparse.Namespace(
+            alerts=alerts,
             config=str(config_path),
             days=-1,
             debug=False,
@@ -365,11 +388,15 @@ def test_daily_alert_workflow_includes_hidden_triggering_day(
     )
 
     assert captured_report_date == [date(2026, 5, 26)]
-    assert RecordingEmailSender.sent_messages[0][0] == "daily high usage alert"
-    assert "5/20/2026 | 20.00 GiB" in RecordingEmailSender.sent_messages[0][1]
-    assert (tmp_path / "router-a-alert-state.txt").read_text(
-        encoding="utf-8"
-    ) == "2026-05-20\n"
+    if alerts:
+        assert RecordingEmailSender.sent_messages[0][0] == "daily high usage alert"
+        assert "5/20/2026 | 20.00 GiB" in RecordingEmailSender.sent_messages[0][1]
+        assert (tmp_path / "router-a-alert-state.txt").read_text(
+            encoding="utf-8"
+        ) == "2026-05-20\n"
+    else:
+        assert RecordingEmailSender.sent_messages == []
+        assert not (tmp_path / "router-a-alert-state.txt").exists()
 
 
 def test_monthly_alert_workflow_sends_once_per_billing_period(
@@ -404,6 +431,7 @@ def test_monthly_alert_workflow_sends_once_per_billing_period(
     monkeypatch.setattr(VnstatClient, "build_usage_report", build_usage_report)
     monkeypatch.setattr("wanusage.cli.EmailSender", RecordingEmailSender)
     args = argparse.Namespace(
+        alerts=True,
         config=str(config_path),
         days=-1,
         debug=False,
@@ -457,6 +485,7 @@ def test_onetime_runs_once_per_day_and_then_exits_silently(
     monkeypatch.setattr("wanusage.cli.UrllibJsonGetter", RecordingJsonGetter)
     monkeypatch.setattr(VnstatClient, "build_usage_report", build_usage_report)
     args = argparse.Namespace(
+        alerts=False,
         config=str(config_path),
         days=None,
         debug=False,
