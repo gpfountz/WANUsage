@@ -129,6 +129,7 @@ def test_source_archive_rebuilds_with_identical_legal_resources(distribution: Di
             *LEGAL_FILES,
             "LICENSING.md",
             "README.md",
+            "versioning.md",
             "pyproject.toml",
             "scripts/versioning.py",
             "wanusage.toml",

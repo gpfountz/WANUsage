@@ -20,7 +20,7 @@ functions clear docstrings, and keep functions focused with meaningful names.
 - Compatible merges preserve the higher version without an additional increment.
   Never lower a version. Major changes require an explicit user request and the
   documented one-command override. Keep build identifiers separate.
-- Follow README.md for branch identity recovery, installation limits, and conflict
+- Follow versioning.md for branch identity recovery, installation limits, and conflict
   recovery. Do not bypass hooks to avoid resolving a versioning error.
 - Versioning setup does not authorize commits, pushes, releases, or deployment.
 - Validate changes with `.venv/bin/python -m pytest`, `.venv/bin/ruff check .`, and

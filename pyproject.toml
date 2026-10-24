@@ -40,7 +40,8 @@ packages = ["src/wanusage"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "/src", "/tests", "/scripts", "/pyproject.toml", "/README.md", "/AGENTS.md",
+  "/src", "/tests", "/scripts", "/pyproject.toml", "/README.md", "/versioning.md",
+  "/AGENTS.md",
   "/LICENSE", "/COPYRIGHT", "/LICENSING.md", "/THIRD_PARTY_NOTICES.md",
   "/wanusage.toml", "/.gitattributes", "/.gitignore", "/.github/workflows/ci.yml",
 ]
