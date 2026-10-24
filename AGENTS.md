@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: 2026 Greg Pfountz -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Python
 
 Use Python for new automation. Annotate variables and function signatures, give
@@ -22,3 +25,14 @@ functions clear docstrings, and keep functions focused with meaningful names.
 - Versioning setup does not authorize commits, pushes, releases, or deployment.
 - Validate changes with `.venv/bin/python -m pytest`, `.venv/bin/ruff check .`, and
   `.venv/bin/mypy src scripts tests`.
+
+# Licensing
+
+- Original project material is GPL-3.0-only, copyright 2026 Greg Pfountz. Preserve
+  existing notices and add accurate notices to new source files; do not assign
+  third-party material the project's copyright or license.
+- Keep the canonical LICENSE unchanged. COPYRIGHT and THIRD_PARTY_NOTICES.md are
+  included in package metadata and copied into runtime resources during builds.
+- Preserve offline `wanusage --license` access, verify actual wheel/sdist contents
+  when changing packaging, and follow LICENSING.md for contributions/distribution.
+- Licensing work does not authorize commits, pushes, deployment, or publication.

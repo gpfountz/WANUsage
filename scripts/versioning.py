@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Greg Pfountz
+# SPDX-License-Identifier: GPL-3.0-only
+# See LICENSE for license terms and the warranty disclaimer.
+
 """Prepare application versions as branch-specific, successfully published Git batches."""
 
 from __future__ import annotations

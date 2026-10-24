@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: 2026 Greg Pfountz -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # WANUsage
 
 Command line reporting for WAN usage from the OPNsense vnStat API.
@@ -70,6 +73,7 @@ wanusage
 wanusage --alerts
 wanusage --help
 wanusage --version
+wanusage --license
 wanusage --config /path/to/router.toml
 wanusage --days 14
 wanusage --debug
@@ -144,6 +148,15 @@ pytest
 ruff check .
 mypy src scripts tests
 ```
+
+## License
+
+Copyright (C) 2026 Greg Pfountz. WANUsage is licensed under **GPL-3.0-only**,
+with no warranty. Redistribution and modification are permitted under the
+[full license](LICENSE). Run `wanusage --license` to read the license and notices
+offline. See [reuse and contribution guidance](LICENSING.md) and the
+[third-party inventory](THIRD_PARTY_NOTICES.md) for scope and distribution details.
+
 ## Deployment
 
 ### Requires Python 3.14 or later.

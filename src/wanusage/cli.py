@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Greg Pfountz
+# SPDX-License-Identifier: GPL-3.0-only
+# See LICENSE for license terms and the warranty disclaimer.
+
 from __future__ import annotations
 
 import argparse
@@ -28,6 +32,7 @@ from wanusage.alerts import (
 )
 from wanusage.config import ConfigError, default_config_path, load_config
 from wanusage.emailer import EmailError, EmailSender
+from wanusage.legal import LEGAL_SUMMARY, legal_notice
 from wanusage.reporting import format_daily_alert_report, format_date, format_report
 from wanusage.vnstat import UrllibJsonGetter, VnstatApiError, VnstatClient
 
@@ -38,6 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         prog="wanusage",
         description="Report WAN usage from the OPNsense vnStat API.",
+        epilog=LEGAL_SUMMARY,
         add_help=False,
     )
     parser.add_argument(
@@ -84,6 +90,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show this help message and exit.",
     )
     parser.add_argument(
+        "--license",
+        action="store_true",
+        help="Show copyright, the full GPLv3 license, and third-party notices; then exit.",
+    )
+    parser.add_argument(
         "-m",
         "--months",
         type=_bounded_int("months", minimum=-1, maximum=11),
@@ -121,6 +132,12 @@ def main() -> None:
 
     parser: argparse.ArgumentParser = build_parser()
     args: argparse.Namespace = parser.parse_args()
+    if args.license:
+        try:
+            print(legal_notice(), end="")
+        except RuntimeError as error:
+            parser.exit(1, f"wanusage: {error}\n")
+        return
     _handle_report(args)
 
 

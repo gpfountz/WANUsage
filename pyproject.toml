@@ -1,5 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Greg Pfountz
+# SPDX-License-Identifier: GPL-3.0-only
+# See LICENSE for license terms and the warranty disclaimer.
+
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -7,14 +11,17 @@ name = "wanusage"
 dynamic = ["version"]
 description = "Report WAN usage from the OPNsense vnStat API."
 readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICENSE", "COPYRIGHT", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.14"
 authors = [
-  { name = "Greg" }
+  { name = "Greg Pfountz" }
 ]
 dependencies = []
 
 [project.optional-dependencies]
 dev = [
+  "hatchling>=1.27",
   "mypy>=1.15",
   "pytest>=8.3",
   "ruff>=0.9",
@@ -25,6 +32,18 @@ wanusage = "wanusage.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/wanusage"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"LICENSE" = "wanusage/legal_texts/LICENSE"
+"COPYRIGHT" = "wanusage/legal_texts/COPYRIGHT"
+"THIRD_PARTY_NOTICES.md" = "wanusage/legal_texts/THIRD_PARTY_NOTICES.md"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src", "/tests", "/scripts", "/pyproject.toml", "/README.md", "/AGENTS.md",
+  "/LICENSE", "/COPYRIGHT", "/LICENSING.md", "/THIRD_PARTY_NOTICES.md",
+  "/wanusage.toml", "/.gitattributes", "/.gitignore", "/.github/workflows/ci.yml",
+]
 
 [tool.hatch.version]
 path = "src/wanusage/__init__.py"
