@@ -36,7 +36,7 @@ jobs:
         run: ruff check .
 
       - name: Type check
-        run: mypy src tests
+        run: mypy src scripts tests
 
       - name: Audit dependencies
         run: pip-audit --skip-editable

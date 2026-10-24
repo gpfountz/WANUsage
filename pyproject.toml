@@ -28,6 +28,7 @@ packages = ["src/wanusage"]
 
 [tool.hatch.version]
 path = "src/wanusage/__init__.py"
+pattern = '^__version__(?:\s*:\s*str)?\s*=\s*"(?P<version>[^"]+)"'
 
 [tool.ruff]
 line-length = 100

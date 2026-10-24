@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 from typing import cast
+
+from wanusage import __version__
 
 
 def test_hatch_uses_package_version_as_the_single_version_source() -> None:
@@ -18,3 +21,7 @@ def test_hatch_uses_package_version_as_the_single_version_source() -> None:
     assert "version" not in project
     assert project["dynamic"] == ["version"]
     assert version["path"] == "src/wanusage/__init__.py"
+    source: str = (project_root / str(version["path"])).read_text(encoding="utf-8")
+    match: re.Match[str] | None = re.search(cast(str, version["pattern"]), source, re.MULTILINE)
+    assert match is not None
+    assert match.group("version") == __version__

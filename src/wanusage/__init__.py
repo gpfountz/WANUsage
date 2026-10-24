@@ -1,5 +1,5 @@
 """WAN usage reporting from the OPNsense vnStat API."""
 
-__all__ = ["__version__"]
+__all__: list[str] = ["__version__"]
 
-__version__ = "2.2.0"
+__version__: str = "2.2.1"
