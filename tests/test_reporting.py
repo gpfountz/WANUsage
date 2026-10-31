@@ -86,9 +86,7 @@ def test_format_report_includes_daily_and_period_totals() -> None:
     assert formatted_report.index("Apr 2026") < formatted_report.index("May 2026")
     assert formatted_report.index("May 2026") < formatted_report.index("Estimated")
     assert "Last 7 completed days and current day" not in formatted_report
-    assert formatted_report.index("Estimated") < formatted_report.index(
-        "\n\nDate      |"
-    )
+    assert formatted_report.index("Estimated") < formatted_report.index("\n\nDate      |")
 
 
 def test_format_report_uses_requested_day_count_in_heading() -> None:

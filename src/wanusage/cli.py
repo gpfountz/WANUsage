@@ -202,9 +202,7 @@ def _run_report(args: argparse.Namespace, config_path: Path, report_date: date) 
                     alert_store.write_last_alert_date(alert_date)
 
         if args.alerts and app_config.vnstat.monthly_alert_gb > 0:
-            monthly_alert_store = AlertStateStore(
-                monthly_alert_state_path_for_config(config_path)
-            )
+            monthly_alert_store = AlertStateStore(monthly_alert_state_path_for_config(config_path))
             with monthly_alert_store.locked():
                 if should_send_monthly_alert(
                     report.estimated_current_month_bytes,

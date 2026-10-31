@@ -62,12 +62,8 @@ def _config(*, daily_alert_gb: int = 50, monthly_alert_gb: int = 1000) -> Vnstat
 def _client(config: VnstatConfig | None = None) -> tuple[VnstatClient, FakeJsonGetter]:
     json_getter = FakeJsonGetter(
         payloads_by_url={
-            "https://router.example.com/api/vnstat/service/daily": {
-                "response": DAILY_RESPONSE
-            },
-            "https://router.example.com/api/vnstat/service/monthly": {
-                "response": MONTHLY_RESPONSE
-            },
+            "https://router.example.com/api/vnstat/service/daily": {"response": DAILY_RESPONSE},
+            "https://router.example.com/api/vnstat/service/monthly": {"response": MONTHLY_RESPONSE},
         }
     )
     return (
@@ -177,10 +173,8 @@ def test_negative_report_days_skips_daily_api_when_alerts_are_disabled() -> None
 def test_monthly_response_must_include_estimate() -> None:
     json_getter = FakeJsonGetter(
         payloads_by_url={
-                "https://router.example.com/api/vnstat/service/daily": {
-                "response": DAILY_RESPONSE
-            },
-                "https://router.example.com/api/vnstat/service/monthly": {
+            "https://router.example.com/api/vnstat/service/daily": {"response": DAILY_RESPONSE},
+            "https://router.example.com/api/vnstat/service/monthly": {
                 "response": "Jun '26 1.00 GiB | 1.00 GiB | 2.00 GiB |"
             },
         }
@@ -198,10 +192,8 @@ def test_monthly_response_must_include_estimate() -> None:
 def test_monthly_response_must_include_at_least_one_month_row() -> None:
     json_getter = FakeJsonGetter(
         payloads_by_url={
-                "https://router.example.com/api/vnstat/service/daily": {
-                "response": DAILY_RESPONSE
-            },
-                "https://router.example.com/api/vnstat/service/monthly": {
+            "https://router.example.com/api/vnstat/service/daily": {"response": DAILY_RESPONSE},
+            "https://router.example.com/api/vnstat/service/monthly": {
                 "response": "estimated 1.00 GiB | 1.00 GiB | 2.00 GiB |"
             },
         }

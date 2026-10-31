@@ -257,11 +257,7 @@ def _select_report_daily_usage(
         return ()
 
     first_report_date: date = today - timedelta(days=day_count)
-    return tuple(
-        value
-        for value in daily_usage
-        if first_report_date <= value.usage_date <= today
-    )
+    return tuple(value for value in daily_usage if first_report_date <= value.usage_date <= today)
 
 
 def _current_month_period(api_months: tuple[UsagePeriod, ...]) -> UsagePeriod:

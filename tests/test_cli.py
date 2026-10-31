@@ -369,10 +369,13 @@ def test_daily_alert_workflow_requires_alerts_option(
         return report
 
     RecordingEmailSender.sent_messages = []
-    monkeypatch.setattr("wanusage.cli.load_config", lambda _path: _app_config(
-        daily_alert_gb=15,
-        monthly_alert_gb=0,
-    ))
+    monkeypatch.setattr(
+        "wanusage.cli.load_config",
+        lambda _path: _app_config(
+            daily_alert_gb=15,
+            monthly_alert_gb=0,
+        ),
+    )
     monkeypatch.setattr("wanusage.cli.date", FixedDate)
     monkeypatch.setattr("wanusage.cli.UrllibJsonGetter", RecordingJsonGetter)
     monkeypatch.setattr(VnstatClient, "build_usage_report", build_usage_report)
@@ -395,9 +398,7 @@ def test_daily_alert_workflow_requires_alerts_option(
     if alerts:
         assert RecordingEmailSender.sent_messages[0][0] == "daily high usage alert"
         assert "5/20/2026 | 20.00 GiB" in RecordingEmailSender.sent_messages[0][1]
-        assert (tmp_path / "router-a-alert-state.txt").read_text(
-            encoding="utf-8"
-        ) == "2026-05-20\n"
+        assert (tmp_path / "router-a-alert-state.txt").read_text(encoding="utf-8") == "2026-05-20\n"
     else:
         assert RecordingEmailSender.sent_messages == []
         assert not (tmp_path / "router-a-alert-state.txt").exists()
@@ -426,10 +427,13 @@ def test_monthly_alert_workflow_sends_once_per_billing_period(
         return report
 
     RecordingEmailSender.sent_messages = []
-    monkeypatch.setattr("wanusage.cli.load_config", lambda _path: _app_config(
-        daily_alert_gb=0,
-        monthly_alert_gb=1000,
-    ))
+    monkeypatch.setattr(
+        "wanusage.cli.load_config",
+        lambda _path: _app_config(
+            daily_alert_gb=0,
+            monthly_alert_gb=1000,
+        ),
+    )
     monkeypatch.setattr("wanusage.cli.date", FixedDate)
     monkeypatch.setattr("wanusage.cli.UrllibJsonGetter", RecordingJsonGetter)
     monkeypatch.setattr(VnstatClient, "build_usage_report", build_usage_report)
@@ -481,10 +485,13 @@ def test_onetime_runs_once_per_day_and_then_exits_silently(
         build_calls.append(report_date)
         return report
 
-    monkeypatch.setattr("wanusage.cli.load_config", lambda _path: _app_config(
-        daily_alert_gb=0,
-        monthly_alert_gb=0,
-    ))
+    monkeypatch.setattr(
+        "wanusage.cli.load_config",
+        lambda _path: _app_config(
+            daily_alert_gb=0,
+            monthly_alert_gb=0,
+        ),
+    )
     monkeypatch.setattr("wanusage.cli.date", FixedDate)
     monkeypatch.setattr("wanusage.cli.UrllibJsonGetter", RecordingJsonGetter)
     monkeypatch.setattr(VnstatClient, "build_usage_report", build_usage_report)

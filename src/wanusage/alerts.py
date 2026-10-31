@@ -65,9 +65,7 @@ class AlertStateStore:
         try:
             return date.fromisoformat(raw_value)
         except ValueError:
-            invalid_path: Path = self.state_path.with_suffix(
-                f"{self.state_path.suffix}.invalid"
-            )
+            invalid_path: Path = self.state_path.with_suffix(f"{self.state_path.suffix}.invalid")
             os.replace(self.state_path, invalid_path)
             return None
 
@@ -163,9 +161,6 @@ def should_send_monthly_alert(
 
     if monthly_alert_gb <= 0:
         return False
-    if (
-        last_alert_period_start is not None
-        and current_period_start <= last_alert_period_start
-    ):
+    if last_alert_period_start is not None and current_period_start <= last_alert_period_start:
         return False
     return estimated_bytes > monthly_alert_gb * BYTES_PER_GIB

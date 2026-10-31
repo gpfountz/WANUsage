@@ -121,9 +121,7 @@ def load_config(config_path: Path) -> AppConfig:
     env_path: Path = env_path_for_config(config_path)
     _reject_legacy_api_credentials(vnstat_section, env_path)
     _reject_legacy_smtp_credentials(email_section, env_path)
-    environment_credentials: EnvironmentCredentials = load_environment_credentials(
-        env_path
-    )
+    environment_credentials: EnvironmentCredentials = load_environment_credentials(env_path)
 
     return AppConfig(
         vnstat=VnstatConfig(
@@ -200,18 +198,14 @@ def load_environment_credentials(env_path: Path) -> EnvironmentCredentials:
                 f"Credentials file contains an invalid entry on line {line_number}: {env_path}"
             )
         if name in values:
-            raise ConfigError(
-                f"Credentials file defines {name} more than once: {env_path}"
-            )
+            raise ConfigError(f"Credentials file defines {name} more than once: {env_path}")
 
         credential_value: str = _unquote_env_value(value.strip())
         if not credential_value:
             raise ConfigError(f"Credentials file has an empty {name} value: {env_path}")
         values[name] = credential_value
 
-    missing_names: list[str] = [
-        name for name in ("key", "secret") if name not in values
-    ]
+    missing_names: list[str] = [name for name in ("key", "secret") if name not in values]
     if missing_names:
         missing_text: str = ", ".join(missing_names)
         raise ConfigError(
@@ -221,9 +215,7 @@ def load_environment_credentials(env_path: Path) -> EnvironmentCredentials:
     smtp_names: tuple[str, str] = ("smtp_username", "smtp_password")
     configured_smtp_names: list[str] = [name for name in smtp_names if name in values]
     if configured_smtp_names and len(configured_smtp_names) != len(smtp_names):
-        missing_smtp_names: list[str] = [
-            name for name in smtp_names if name not in values
-        ]
+        missing_smtp_names: list[str] = [name for name in smtp_names if name not in values]
         missing_smtp_text: str = ", ".join(missing_smtp_names)
         raise ConfigError(
             f"Credentials file is missing required SMTP value(s) {missing_smtp_text}: {env_path}"
@@ -255,9 +247,7 @@ def _reject_legacy_api_credentials(vnstat_section: dict[str, Any], env_path: Pat
     legacy_keys: set[str] = {"key", "secret"} & vnstat_section.keys()
     if legacy_keys:
         names: str = ", ".join(sorted(legacy_keys))
-        raise ConfigError(
-            f"Move vnstat {names} to {env_path} and remove it from the config file"
-        )
+        raise ConfigError(f"Move vnstat {names} to {env_path} and remove it from the config file")
 
 
 def _reject_legacy_smtp_credentials(email_section: dict[str, Any], env_path: Path) -> None:
@@ -266,15 +256,13 @@ def _reject_legacy_smtp_credentials(email_section: dict[str, Any], env_path: Pat
     legacy_keys: set[str] = {"username", "password"} & email_section.keys()
     if legacy_keys:
         names: str = ", ".join(sorted(legacy_keys))
-        raise ConfigError(
-            f"Move email {names} to {env_path} and remove it from the config file"
-        )
+        raise ConfigError(f"Move email {names} to {env_path} and remove it from the config file")
 
 
 def _unquote_env_value(value: str) -> str:
     """Remove one matching pair of optional quotes from a dotenv value."""
 
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"\"", "'"}:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
         return value[1:-1]
     return value
 

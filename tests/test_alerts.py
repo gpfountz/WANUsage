@@ -91,9 +91,7 @@ def test_alert_state_store_quarantines_invalid_state(tmp_path: Path) -> None:
 
     assert store.read_last_alert_date() is None
     assert not state_path.exists()
-    assert state_path.with_suffix(".txt.invalid").read_text(
-        encoding="utf-8"
-    ) == "invalid-date\n"
+    assert state_path.with_suffix(".txt.invalid").read_text(encoding="utf-8") == "invalid-date\n"
 
 
 def test_alert_state_store_holds_an_exclusive_process_lock(tmp_path: Path) -> None:

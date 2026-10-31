@@ -3,7 +3,7 @@
 # See LICENSE for license terms and the warranty disclaimer.
 
 [build-system]
-requires = ["hatchling>=1.32.4"]
+requires = ["hatchling>=1.33.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -21,11 +21,11 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-  "hatchling>=1.32.4",
-  "mypy>=2.4.0",
+  "hatchling>=1.33.0",
+  "mypy>=2.4.1",
   "pip-audit>=2.10.1",
-  "pytest>=9.1.1",
-  "ruff>=0.17.2",
+  "pytest>=9.2.0",
+  "ruff>=0.17.3",
 ]
 
 [project.scripts]

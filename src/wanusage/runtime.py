@@ -59,9 +59,7 @@ def requires_python_specifier_from_pyproject(pyproject_path: Path) -> str:
 
     requires_python: Any = project_section.get("requires-python")
     if not isinstance(requires_python, str):
-        raise RuntimeError(
-            f"pyproject.toml is missing project.requires-python: {pyproject_path}"
-        )
+        raise RuntimeError(f"pyproject.toml is missing project.requires-python: {pyproject_path}")
 
     return requires_python
 
