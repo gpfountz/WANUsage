@@ -161,40 +161,74 @@ offline. See [reuse and contribution guidance](LICENSING.md) and the
 
 ### Requires Python 3.14 or later.
 
-Do not deploy WANUsage by copying `.py` files or maintaining a handwritten
-wrapper script. Build a wheel from the source checkout, copy that wheel to each
-server, and install it into a dedicated virtual environment.
-
-Build the wheel on the development Mac from the WANUsage project directory:
+Build the current source version from the checkout on macOS or Linux:
 
 ```bash
-cd /Users/greg/Library/CloudStorage/SynologyDrive-home/Codex/WANUsage
-.venv/bin/python -m pip wheel . -w dist
+sh ./scripts/build.sh
 ```
 
-Copy the generated wheel to each server:
+The build reads the version from `src/wanusage/__init__.py`, uses an isolated
+build environment, and writes the completed wheel to `dist/`. Rebuilding the
+same version replaces that wheel only after the new build has succeeded.
+Builds and deployments do not advance the application version.
 
-```text
-dist/wanusage-<version>-py3-none-any.whl
-```
-
-On each server, install or upgrade WANUsage in its dedicated virtual
-environment:
+Deploy the newest wheel locally on each Mac or Linux machine:
 
 ```bash
-sudo install -d -m 755 /usr/local/wanusage
-sudo chown "$USER:$(id -gn)" /usr/local/wanusage
-python3.14 -m venv /usr/local/wanusage/.venv
-/usr/local/wanusage/.venv/bin/python -m pip install --upgrade /path/to/wanusage-<version>-py3-none-any.whl
+sh ./scripts/deploy.sh
 ```
 
-Create or update a symlink so WANUsage can be run by typing `wanusage`:
+Use the `sh` prefix on both platforms: copied or synced files may lose their
+execute permissions, as observed on the DiskStation. The scripts only need
+to be readable when launched this way. To enable direct `./scripts/...`
+invocation on a machine, run `chmod u+x scripts/build.sh scripts/deploy.sh`
+there; a later sync may require repeating it.
+
+Deployment selects the highest numeric version in `dist/`, installs it into
+`/usr/local/wanusage/.venv`, and creates `/usr/local/bin/wanusage`. It requests
+`sudo` when those directories require elevated access. A repeated deployment
+refreshes the same version, so it also installs a rebuilt wheel whose version
+has not changed. The scripts work from any current directory.
+
+When building on the Mac in the Synology Drive folder, wait for the new wheel
+in `dist/` to finish syncing, then run `sh ./scripts/deploy.sh` on the DiskStation.
+For separate, unsynchronized checkouts, copy the wheel into the target's `dist/`
+directory first.
+Deployment does not rebuild the wheel or require development dependencies.
+For a machine without a source checkout, copy `scripts/deploy.sh`,
+`scripts/run_python.sh`, and `scripts/distribution.py` together into a `scripts/`
+directory alongside `dist/`. Copy `wanusage.toml` too for a first installation.
+
+Deployment sets readable permissions on installed application files and legal
+resources, including repairing older restrictive installations. It verifies the
+installed version and offline `--license` access as the invoking user before
+creating the command symlink. Existing runtime configuration, credentials, and
+alert state remain in the user's configuration directory.
+
+Both entry points look for the checkout's `.venv/bin/python`, then `python3.14`
+and `python3` on `PATH`, requiring Python 3.14 or later. Select a different
+interpreter explicitly when needed:
 
 ```bash
-sudo ln -sfn /usr/local/wanusage/.venv/bin/wanusage /usr/local/bin/wanusage
+WANUSAGE_PYTHON=/path/to/python3.14 sh ./scripts/deploy.sh
 ```
 
-Use the symlink for interactive runs:
+Optional paths support a different wheel directory or a user-owned installation:
+
+```bash
+sh ./scripts/deploy.sh --wheel-dir /path/to/wheels
+sh ./scripts/deploy.sh --install-dir "$HOME/.local/share/wanusage" --bin-dir "$HOME/.local/bin"
+```
+
+Use `--wheel /path/to/wanusage-X.Y.Z-py3-none-any.whl` to select an exact artifact.
+Deployment refuses to overwrite an unrelated command at the selected symlink
+path. Add a custom `--bin-dir` to `PATH` when using a user-owned installation.
+
+For offline builds, first install the development dependencies, then run
+`sh ./scripts/build.sh --no-build-isolation`. `--output-dir /path/to/wheels` selects
+a different build destination. Run either script with `--help` for its options.
+
+After deployment, run interactively as your normal user:
 
 ```bash
 wanusage --version

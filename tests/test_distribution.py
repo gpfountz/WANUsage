@@ -132,6 +132,10 @@ def test_source_archive_rebuilds_with_identical_legal_resources(distribution: Di
             "versioning.md",
             "pyproject.toml",
             "scripts/versioning.py",
+            "scripts/build.sh",
+            "scripts/deploy.sh",
+            "scripts/run_python.sh",
+            "scripts/distribution.py",
             "wanusage.toml",
             "tests/test_distribution.py",
         ):
@@ -143,6 +147,8 @@ def test_source_archive_rebuilds_with_identical_legal_resources(distribution: Di
             Path(name).name in {".env", "opencollection.yml", "wanusage-dev.toml"}
             for name in archive.getnames()
         )
+        for script in ("build.sh", "deploy.sh"):
+            assert archive.getmember(f"{prefix}/scripts/{script}").mode & 0o111
     rebuilt: Path = distribution.unpacked_source.parent / "rebuilt"
     build_artifacts(distribution.unpacked_source, rebuilt, "wheel")
     with zipfile.ZipFile(next(rebuilt.glob("*.whl"))) as wheel:

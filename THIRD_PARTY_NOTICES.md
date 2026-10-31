@@ -13,8 +13,9 @@ frozen executable or container.
 WANUsage declares no runtime package dependencies. The reviewed source contains
 no vendored third-party code, native libraries, fonts, images, or copied upstream
 license notices requiring a separate bundled license. The application, tests,
-Git versioning script, documentation, and configuration/request examples are
-project material. JSON editor settings have adjacent `.license` sidecars.
+Git versioning and build/deployment scripts, documentation, and
+configuration/request examples are project material. JSON editor settings have
+adjacent `.license` sidecars.
 
 The GPL text in `LICENSE` is the unmodified Free Software Foundation license
 document, copyright 2007 Free Software Foundation, Inc. Its own permission to
